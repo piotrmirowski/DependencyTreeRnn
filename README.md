@@ -13,8 +13,7 @@ Dependency tree-based RNN
 ```
 > make -f YOUR_OWN_MAKEFILE
 ```
-3. The .o objects are stored in directory build/
-   and the executable is ./RnnDependencyTree
+Note that the .o objects are stored in directory build/ and the executable is ./RnnDependencyTree
    
 # Sample training script
 Shell script train_rnn_holmes_debug.sh trains an RNN on a subset of a few books.
