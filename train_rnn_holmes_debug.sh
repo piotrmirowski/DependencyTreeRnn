@@ -1,11 +1,18 @@
 #!/bin/sh
 
+# This is the path that should be edited,
+# depending on where the JSON books are stored
 PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
+PATH_JSON_PIOTR_MAC="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
+
 PATH_DATA="./books"
+PATH_MODELS="./models"
 LIST_VALID="$PATH_DATA/valid.txt"
 LIST_TRAIN="$PATH_DATA/train_small.txt"
-FILE_MODEL="$PATH_DATA/GutenbergHolmes_debug.model"
+FILE_MODEL="$PATH_MODELS/GutenbergHolmes_debug.model"
 
+# Train the dependency-parsing model
+# I will comment the options later
 RnnDependencyTree \
   -rnnlm $FILE_MODEL \
   -train $LIST_TRAIN \
