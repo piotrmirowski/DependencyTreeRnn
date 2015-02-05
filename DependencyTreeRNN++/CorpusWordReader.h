@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <cctype>
 
 /// <summary>
 /// These functions are part of an internal library that should be included

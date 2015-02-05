@@ -55,6 +55,7 @@
 #include <algorithm>
 #include <sstream>
 #include <fstream>
+#include <stdexcept>
 
 #include <math.h>
 #include <time.h>
@@ -470,7 +471,7 @@ m_areSentencesIndependent(true)
         FILE *fi = fopen(m_rnnModelFile.c_str(), "rb");
         if (fi == NULL)
         {
-            throw new std::runtime_error("Did not find file " + m_rnnModelFile);
+            throw new runtime_error("Did not find file " + m_rnnModelFile);
         }
         
         GoToDelimiterInFile(':', fi);
@@ -478,7 +479,7 @@ m_areSentencesIndependent(true)
         fscanf(fi, "%d", &ver);
         if (ver != m_rnnModelVersion)
         {
-            throw new std::runtime_error("Unknown version of file " + m_rnnModelFile);
+            throw new runtime_error("Unknown version of file " + m_rnnModelFile);
         }
         
         GoToDelimiterInFile(':', fi);
