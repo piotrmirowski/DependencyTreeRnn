@@ -1,6 +1,9 @@
 // Copyright (c) 2014 Piotr Mirowski. All rights reserved.
 //                    piotr.mirowski@computer.org
 
+#include <climits>
+#include <cmath>
+#include <algorithm>
 #include "CorpusUnrollsReader.h"
 #include "readjson.h"
 
