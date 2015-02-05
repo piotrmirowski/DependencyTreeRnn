@@ -2,14 +2,18 @@
 Dependency tree-based RNN
 
 # Installation
-1) Modify the path to the BLAS header (cblas.h) file, i.e., $BLASINCLUDE
+1. Modify the path to the BLAS header (cblas.h) file, i.e., $BLASINCLUDE
    and the BLAS path, i.e., $BLASFLAGS, in file Makefile.
    Alternatively, make your own version of that Makefile.
-2) Build the project:
+2. Build the project:
+```
 > make
-or, using your custom Makefile:
+```
+   or, using your custom Makefile:
+```
 > make -f YOUR_OWN_MAKEFILE
-3) The .o objects are stored in directory build/
+```
+3. The .o objects are stored in directory build/
    and the executable is ./RnnDependencyTree
    
 # Sample training script
