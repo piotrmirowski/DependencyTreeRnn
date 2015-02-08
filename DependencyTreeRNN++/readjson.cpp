@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 #include "json.h"
-#include "readjson.h"
+#include "ReadJson.h"
 #include "CorpusUnrollsReader.h"
 
 using namespace std;
@@ -93,9 +93,9 @@ ReadJson::ReadJson(const string &filename,
         int wordIndex = 0, labelIndex = 0;
         if (merge_label_with_word) {
           wordIndex = corpus.LookUpWord(tokenWord);
-          labelIndex = corpus.LookUpLabel(_tokenLabel);
         } else {
           wordIndex = corpus.LookUpWord(tokenWord);
+          labelIndex = corpus.LookUpLabel(_tokenLabel);
         }
         book->AddToken(isNewSentence, isNewUnroll,
                        _tokenPos, wordIndex,
@@ -257,88 +257,4 @@ void ReadJson::ProcessToken() {
   // Get the label of the token in the unroll
   element = element->next_sibling;
   _tokenLabel = element->string_value;
-}
-
-
-/**
- * Parse a corpus in the JSON parse tree and print it
- */
-void ReadJson::TraverseCorpus(bool verbose) {
-  // Safety check
-  if (_root->type != JSON_ARRAY)
-    cerr << "Error: corpus is not a JSON array: "
-    << _root->type << endl;
-  // Loop over sentences
-  ResetSentence();
-  int numSentences = NumSentences();
-  for (int i = 0; i < numSentences; i++) {
-    if (verbose)
-      printf("### Sentence %d:\n", _sentenceIndex);
-    // Safety check
-    if (_sentence->type != JSON_ARRAY)
-      cerr << "Error: sentence is not a JSON array: "
-      << _sentence->type << endl;
-    // Loop over unrolls
-    ResetUnroll();
-    int n_unrolls = NumUnrolls(i);
-    for (int j = 0; j < n_unrolls; j++) {
-      // Safety check
-      if (_unroll->type != JSON_ARRAY)
-        cerr << "Error: unroll is not a JSON array: "
-        << _unroll->type << endl;
-      if (verbose)
-        printf("#   Unroll:");
-      // Loop over the tokens
-      bool ok = true;
-      while (ok) {
-        // Safety checks
-        if (_token->type != JSON_ARRAY)
-          cerr << "Error: token is not a JSON array: "
-          << _token->type << endl;
-        CheckToken();
-        if (verbose)
-          printf(" %d:%s:%s(%.3f)",
-                 CurrentTokenNumberInSentence(),
-                 CurrentTokenWord(),
-                 CurrentTokenLabel(),
-                 CurrentTokenDiscount());
-        ok = (NextTokenInUnroll() >= 0);
-      }
-      if (verbose)
-        printf("\n");
-      NextUnrollInSentence();
-    }
-    NextSentence();
-  }
-}
-
-
-/**
- * Parse a token in the JSON parse tree to check its structure
- */
-void ReadJson::CheckToken() {
-  // Safety check
-  if (_token == NULL) {
-    _tokenPos = -1;
-    _tokenWord = NULL;
-    _tokenDiscount = 0;
-    _tokenLabel = NULL;
-    return;
-  }
-  json_value *element = _token->first_child;
-  if (element->type != JSON_INT)
-    cerr << "Error: not an integer token position at pos 0: "
-    << element->type << endl;
-  element = element->next_sibling;
-  if (element->type != JSON_STRING)
-    cerr << "Error: not a word at pos 1: "
-    << element->type << endl;
-  element = element->next_sibling;
-  if (element->type != JSON_INT)
-    cerr << "Error: not a discount at pos 2: "
-    << element->type << endl;
-  element = element->next_sibling;
-  if (element->type != JSON_STRING)
-    cerr << "Error: not a label at pos 3: "
-    << element->type << endl;
 }

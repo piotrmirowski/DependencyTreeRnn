@@ -10,28 +10,12 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "DependencyTreeRNN++/RnnDependencyTreeLib.cpp"
-            timestampString = "444793025.425582"
+            timestampString = "445033151.343075"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "608"
-            endingLineNumber = "608"
+            startingLineNumber = "613"
+            endingLineNumber = "613"
             landmarkName = "RnnTreeLM::TestRnnModel(const string &amp;testFile, const string &amp;featureFile, int &amp;uniqueWordCounter, vector&lt;double&gt; &amp;sentenceScores)"
-            landmarkType = "5">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "DependencyTreeRNN++/RnnLib.cpp"
-            timestampString = "444793025.425582"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "981"
-            endingLineNumber = "981"
-            landmarkName = "RnnLM::ForwardPropagateOneStep(int lastWord, int word, RnnState &amp;state)"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>

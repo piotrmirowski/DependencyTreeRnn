@@ -5,7 +5,7 @@
 #include <cmath>
 #include <algorithm>
 #include "CorpusUnrollsReader.h"
-#include "readjson.h"
+#include "ReadJson.h"
 
 /**
  * Add a token to the book

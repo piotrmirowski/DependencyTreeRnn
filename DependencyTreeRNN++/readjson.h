@@ -2,9 +2,6 @@
 //                    piotr.mirowski@computer.org
 
 #ifndef DependencyTreeRNN___readjson_h
-// Copyright (c) 2014 Piotr Mirowski. All rights reserved.
-//                    piotr.mirowski@computer.org
-
 #define DependencyTreeRNN___readjson_h
 
 #include <vector>
@@ -32,11 +29,6 @@ public:
    * Destructor
    */
   ~ReadJson() { }
-  
-  /**
-   * Parse a corpus in the JSON parse tree and optionally print it
-   */
-  void TraverseCorpus(bool verbose);
   
   /**
    * Return the number of sentences
@@ -140,19 +132,9 @@ protected:
   vector<int> _numUnrollsPerSentence;
   
   /**
-   * Parse a corpus in the JSON parse tree and count sentences and unrolls
-   */
-  void CountSentencesUnrolls();
-  
-  /**
    * Parse a token in the JSON parse tree to fill token data
    */
   void ProcessToken();
-  
-  /**
-   * Parse a token in the JSON parse tree to check the structure
-   */
-  void CheckToken();
 };
 
 #endif

@@ -25,7 +25,7 @@
 #include <iostream>
 #include <sstream>
 #include <assert.h>
-#include "readjson.h"
+#include "ReadJson.h"
 #include "RnnState.h"
 #include "CorpusUnrollsReader.h"
 #include "RnnDependencyTreeLib.h"
@@ -261,6 +261,11 @@ bool RnnTreeLM::TrainRnnModel() {
             t1 = clock();
             timeGet += t1 - t0;
             t0 = t1;
+//            printf("%s(%s) -> %s(%s)\n",
+//                   m_corpusTrain.vocabularyReverse[lastWord].c_str(),
+//                   m_corpusTrain.labelsReverse[lastLabel].c_str(),
+//                   m_corpusTrain.vocabularyReverse[word].c_str(),
+//                   m_corpusTrain.labelsReverse[label].c_str());
             
             // Update the feature matrix with the last dependency label
             if (m_typeOfDepLabels == 2) {

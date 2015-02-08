@@ -67,11 +67,11 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-min-word-occurrence 1"
+            argument = "-min-word-occurrence 2"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-feature-labels-type 1"
+            argument = "-feature-labels-type 2"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -103,7 +103,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-debug false"
+            argument = "-debug true"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

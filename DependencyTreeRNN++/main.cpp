@@ -61,7 +61,6 @@
 // Additions
 #include <vector>
 #include <time.h>
-#include "readjson.h"
 #include "CommandLineParser.h"
 #include "RnnDependencyTreeLib.h"
 #include "RnnTraining.h"

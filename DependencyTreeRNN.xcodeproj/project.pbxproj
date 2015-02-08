@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AE059BEC19E9634E00CC4E84 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BEB19E9634E00CC4E84 /* main.cpp */; };
-		AE059BF419E963AC00CC4E84 /* readjson.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BF319E963AC00CC4E84 /* readjson.cpp */; };
+		AE059BF419E963AC00CC4E84 /* ReadJson.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BF319E963AC00CC4E84 /* ReadJson.cpp */; };
 		AE059BF719E963E400CC4E84 /* json.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BF519E963E400CC4E84 /* json.cpp */; };
 		AE059BFA19E9642E00CC4E84 /* block_allocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BF819E9642E00CC4E84 /* block_allocator.cpp */; };
 		AE059BFD19E9649000CC4E84 /* CorpusUnrollsReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE059BFB19E9649000CC4E84 /* CorpusUnrollsReader.cpp */; };
@@ -34,8 +34,8 @@
 /* Begin PBXFileReference section */
 		AE059BE819E9634E00CC4E84 /* DependencyTreeRNN++ */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; name = "DependencyTreeRNN++"; path = DependencyTreeRNN; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE059BEB19E9634E00CC4E84 /* main.cpp */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; tabWidth = 2; };
-		AE059BF219E9637500CC4E84 /* readjson.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; path = readjson.h; sourceTree = "<group>"; tabWidth = 2; };
-		AE059BF319E963AC00CC4E84 /* readjson.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; path = readjson.cpp; sourceTree = "<group>"; tabWidth = 2; };
+		AE059BF219E9637500CC4E84 /* ReadJson.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; path = ReadJson.h; sourceTree = "<group>"; tabWidth = 2; };
+		AE059BF319E963AC00CC4E84 /* ReadJson.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; path = ReadJson.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		AE059BF519E963E400CC4E84 /* json.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = json.cpp; sourceTree = "<group>"; };
 		AE059BF619E963E400CC4E84 /* json.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = json.h; sourceTree = "<group>"; };
 		AE059BF819E9642E00CC4E84 /* block_allocator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = block_allocator.cpp; sourceTree = "<group>"; };
@@ -88,8 +88,8 @@
 			isa = PBXGroup;
 			children = (
 				AE059BEB19E9634E00CC4E84 /* main.cpp */,
-				AE059BF219E9637500CC4E84 /* readjson.h */,
-				AE059BF319E963AC00CC4E84 /* readjson.cpp */,
+				AE059BF219E9637500CC4E84 /* ReadJson.h */,
+				AE059BF319E963AC00CC4E84 /* ReadJson.cpp */,
 				AE059BF519E963E400CC4E84 /* json.cpp */,
 				AE059BF619E963E400CC4E84 /* json.h */,
 				AE059BF819E9642E00CC4E84 /* block_allocator.cpp */,
@@ -167,7 +167,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AE059BEC19E9634E00CC4E84 /* main.cpp in Sources */,
-				AE059BF419E963AC00CC4E84 /* readjson.cpp in Sources */,
+				AE059BF419E963AC00CC4E84 /* ReadJson.cpp in Sources */,
 				AE059BF719E963E400CC4E84 /* json.cpp in Sources */,
 				AE059C0019E9651400CC4E84 /* RnnLib.cpp in Sources */,
 				AE059BFA19E9642E00CC4E84 /* block_allocator.cpp in Sources */,

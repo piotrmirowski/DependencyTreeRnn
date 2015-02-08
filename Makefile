@@ -15,7 +15,7 @@ OBJDIR = build
 
 OBJ = $(OBJDIR)/block_allocator.o \
       $(OBJDIR)/json.o \
-      $(OBJDIR)/readjson.o \
+      $(OBJDIR)/ReadJson.o \
       $(OBJDIR)/CorpusUnrollsReader.o \
       $(OBJDIR)/CommandLineParser.o \
       $(OBJDIR)/RnnLib.o \
@@ -31,7 +31,7 @@ $(OBJDIR)/block_allocator.o: $(SRCDIR)/block_allocator.cpp $(INCLUDES)
 $(OBJDIR)/json.o: $(SRCDIR)/json.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
-$(OBJDIR)/readjson.o: $(SRCDIR)/readjson.cpp $(INCLUDES)
+$(OBJDIR)/ReadJson.o: $(SRCDIR)/ReadJson.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/CorpusUnrollsReader.o: $(SRCDIR)/CorpusUnrollsReader.cpp $(INCLUDES)
