@@ -41,10 +41,10 @@ ReadJson::ReadJson(const string &filename,
   }
   fclose(fin);
   
-  // Parse the JSON
-  _root = json_parse(source,
-                     &errorPos, &errorDesc, &errorLine,
-                     &allocator);
+  // Parse the JSON and keep a pointer to the root of the book
+  json_value *_root = json_parse(source,
+                                 &errorPos, &errorDesc, &errorLine,
+                                 &allocator);
   if (_root == NULL) {
     cerr << "\nError at line " << errorLine << endl;
     cerr << errorDesc << endl << errorPos << endl;
@@ -60,33 +60,39 @@ ReadJson::ReadJson(const string &filename,
        s = s->next_sibling) {
     int numUnrollsInThatSentence = 0;
     bool isNewSentence = true;
+    
     // Second, iterate over unrolls in each sentence
     for (json_value *u = s->first_child;
          u;
          u = u->next_sibling) {
       bool isNewUnroll = true;
+
       // Third, iterate over tokens in each unroll
-      for (_token = u->first_child;
-           _token;
-           _token = _token->next_sibling) {
+      for (json_value *token = u->first_child;
+           token;
+           token = token->next_sibling) {
+
         // Process the token to get:
         // its position in sentence,
         // word, discount and label
-        ProcessToken();
-        string tokenWord(_tokenWord);
+        string tokenWord(""), tokenLabel("");
+        double tokenDiscount = 0;
+        int tokenPos = -1;
+        ProcessToken(token, tokenPos, tokenWord, tokenDiscount, tokenLabel);
         if (merge_label_with_word) {
-          tokenWord = string(_tokenWord) + ":" + string(_tokenLabel);
+          tokenWord += ":" + tokenLabel;
         }
+
         // Shall we insert new words/labels
         // into the vocabulary?
         if (insert_vocab) {
           if (merge_label_with_word) {
             // Insert concatenated word and label to vocabulary
-            corpus.InsertWord(tokenWord, _tokenDiscount);
+            corpus.InsertWord(tokenWord, tokenDiscount);
           } else {
             // Insert word and label to two different vocabularies
-            corpus.InsertWord(tokenWord, _tokenDiscount);
-            corpus.InsertLabel(_tokenLabel);
+            corpus.InsertWord(tokenWord, tokenDiscount);
+            corpus.InsertLabel(tokenLabel);
           }
         }
         // Insert new words to the book
@@ -95,22 +101,21 @@ ReadJson::ReadJson(const string &filename,
           wordIndex = corpus.LookUpWord(tokenWord);
         } else {
           wordIndex = corpus.LookUpWord(tokenWord);
-          labelIndex = corpus.LookUpLabel(_tokenLabel);
+          labelIndex = corpus.LookUpLabel(tokenLabel);
         }
         book->AddToken(isNewSentence, isNewUnroll,
-                       _tokenPos, wordIndex,
-                       _tokenDiscount, labelIndex);
+                       tokenPos, wordIndex,
+                       tokenDiscount, labelIndex);
         // We are no longer at beginning of a sentence or unroll
         isNewSentence = false;
         isNewUnroll = false;
       }
       numUnrollsInThatSentence++;
     }
-    _numUnrollsPerSentence.push_back(numUnrollsInThatSentence);
     numSentences++;
   }
   cout << "\nReadJSON: " << filename << endl;
-  cout << "          (" << NumSentences() << " sentences, including empty ones; ";
+  cout << "          (" << numSentences << " sentences, including empty ones; ";
   cout << book->NumTokens() << " tokens)\n";
   if (insert_vocab) {
     cout << "          Corpus now contains " << corpus.NumWords()
@@ -120,141 +125,31 @@ ReadJson::ReadJson(const string &filename,
 
 
 /**
- * Go to a specific sentence
- */
-bool ReadJson::GoToSentence(int n) {
-  // Safety check
-  if (n >= NumSentences())
-    return false;
-  // Do nothing?
-  if (_sentenceIndex == n) {
-    ResetUnroll();
-    return true;
-  }
-  // Do we need to reset sentence position?
-  if (_sentenceIndex > n) {
-    _sentenceIndex = NumSentences();
-    NextSentence();
-  }
-  // Iterate through the list of sentences
-  while (_sentenceIndex < n)
-    NextSentence();
-  return true;
-}
-
-
-/**
- * Go to the next sentence
- */
-int ReadJson::NextSentence() {
-  int n = NumSentences();
-  if (_sentenceIndex >= n - 1) {
-    // Return to sentence 0...
-    ResetSentence();
-  } else {
-    // ... or simply go to next sentence?
-    _sentence = _sentence->next_sibling;
-    _sentenceIndex++;
-    // Reset the unroll
-    ResetUnroll();
-  }
-  return _sentenceIndex;
-}
-
-
-/**
- * Go to the next unroll in the current sentence
- */
-int ReadJson::NextUnrollInSentence() {
-  int n = NumUnrolls(_sentenceIndex);
-  if (_unrollIndex >= n - 1) {
-    // Return to unroll 0 in the current sentence...
-    ResetUnroll();
-  } else {
-    // ... or simply go to next unroll?
-    _unroll = _unroll->next_sibling;
-    _unrollIndex++;
-    // Reset the token
-    ResetToken();
-  }
-  return _unrollIndex;
-}
-
-
-/**
- * Go to the next unroll in the current sentence.
- * Here, we do not loop over but stop (return -1)
- * when the end of the unroll is reached.
- */
-int ReadJson::NextTokenInUnroll() {
-  // If we have reach the end of sentence
-  if (_tokenIndex < 0)
-    return -1;
-  // Then, go to the next token
-  _token = _token->next_sibling;
-  _tokenIndex++;
-  // Process current token
-  ProcessToken();
-  if (_token == NULL) {
-    return -1;
-  } else {
-    return _tokenIndex;
-  }
-}
-
-
-/**
- * Reset the unroll in the current sentence
- */
-void ReadJson::ResetSentence() {
-  _sentence = _root->first_child;
-  _sentenceIndex = 0;
-  ResetUnroll();
-}
-
-
-/**
- * Reset the unroll in the current sentence
- */
-void ReadJson::ResetUnroll() {
-  _unroll = _sentence->first_child;
-  _unrollIndex = 0;
-  ResetToken();
-}
-
-
-/**
- * Reset the token in the current sentence and unroll
- */
-void ReadJson::ResetToken() {
-  _token = _unroll->first_child;
-  _tokenIndex = 0;
-  ProcessToken();
-}
-
-
-/**
  * Parse a token in the JSON parse tree to fill token data
  */
-void ReadJson::ProcessToken() {
+void ReadJson::ProcessToken(const json_value *_token,
+                            int & tokenPos,
+                            string & tokenWord,
+                            double & tokenDiscount,
+                            string & tokenLabel) const {
   // Safety check
   if (_token == NULL) {
-    _tokenPos = -1;
-    _tokenWord = NULL;
-    _tokenDiscount = 0;
-    _tokenLabel = NULL;
+    tokenPos = -1;
+    tokenWord = "";
+    tokenDiscount = 0;
+    tokenLabel = "";
     return;
   }
   // Get the position of the token in the unroll
   json_value *element = _token->first_child;
-  _tokenPos = element->int_value;
+  tokenPos = element->int_value;
   // Get the string of the word in the token in the unroll
   element = element->next_sibling;
-  _tokenWord = element->string_value;
+  tokenWord = string(element->string_value);
   // Get the discount of the token in the unroll
   element = element->next_sibling;
-  _tokenDiscount = (double) 1.0 / (element->int_value);
+  tokenDiscount = (double) 1.0 / (element->int_value);
   // Get the label of the token in the unroll
   element = element->next_sibling;
-  _tokenLabel = element->string_value;
+  tokenLabel = string(element->string_value);
 }
