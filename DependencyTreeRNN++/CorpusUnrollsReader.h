@@ -15,7 +15,8 @@
  */
 struct Token {
     int pos;
-    int word;
+    int wordAsContext;
+    int wordAsTarget;
     double discount;
     int label;
 };
@@ -61,8 +62,8 @@ public:
      * Add a token to the book
      */
     void AddToken(bool new_sentence, bool new_unroll,
-                  int pos, int word, double discount,
-                  int label);
+                  int pos, int wordAsContext, int wordAsTarget,
+                  double discount, int label);
     
     /**
      * Return the number of sentences
@@ -124,7 +125,8 @@ public:
      */
     int CurrentTokenNumberInSentence() { return _currentToken->pos; }
     double CurrentTokenDiscount() { return _currentToken->discount; }
-    int CurrentTokenWord() { return _currentToken->word; }
+    int CurrentTokenWordAsContext() { return _currentToken->wordAsContext; }
+    int CurrentTokenWordAsTarget() { return _currentToken->wordAsTarget; }
     int CurrentTokenLabel() { return _currentToken->label; }
     
     /**

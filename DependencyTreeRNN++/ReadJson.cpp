@@ -75,36 +75,48 @@ ReadJson::ReadJson(const string &filename,
         // Process the token to get:
         // its position in sentence,
         // word, discount and label
-        string tokenWord(""), tokenLabel("");
+        string tokenWordAsContext(""), tokenWordAsTarget(""), tokenLabel("");
         double tokenDiscount = 0;
         int tokenPos = -1;
-        ProcessToken(token, tokenPos, tokenWord, tokenDiscount, tokenLabel);
+        ProcessToken(token, tokenPos, tokenWordAsTarget, tokenDiscount, tokenLabel);
+        tokenWordAsContext = tokenWordAsTarget;
+
+        // Concatenate word with label, when it is used as context?
         if (merge_label_with_word) {
-          tokenWord += ":" + tokenLabel;
+          tokenWordAsContext += ":" + tokenLabel;
         }
 
         // Shall we insert new words/labels
         // into the vocabulary?
         if (insert_vocab) {
           if (merge_label_with_word) {
-            // Insert concatenated word and label to vocabulary
-            corpus.InsertWord(tokenWord, tokenDiscount);
+            if (tokenLabel == "LEAF") {
+              // Insert target word to vocabulary
+              corpus.InsertWord(tokenWordAsTarget, tokenDiscount);
+            } else {
+              // Insert concatenated context word and label to vocabulary
+              corpus.InsertWord(tokenWordAsContext, tokenDiscount);
+            }
           } else {
             // Insert word and label to two different vocabularies
-            corpus.InsertWord(tokenWord, tokenDiscount);
-            corpus.InsertLabel(tokenLabel);
+            corpus.InsertWord(tokenWordAsContext, tokenDiscount);
+            if (tokenLabel != "LEAF") {
+              corpus.InsertLabel(tokenLabel);
+            }
           }
         }
         // Insert new words to the book
-        int wordIndex = 0, labelIndex = 0;
+        int wordIndexAsContext = 0, wordIndexAsTarget = 0, labelIndex = 0;
         if (merge_label_with_word) {
-          wordIndex = corpus.LookUpWord(tokenWord);
+          wordIndexAsContext = corpus.LookUpWord(tokenWordAsContext);
+          wordIndexAsTarget = corpus.LookUpWord(tokenWordAsTarget);
         } else {
-          wordIndex = corpus.LookUpWord(tokenWord);
+          wordIndexAsContext = corpus.LookUpWord(tokenWordAsContext);
+          wordIndexAsTarget = wordIndexAsContext;
           labelIndex = corpus.LookUpLabel(tokenLabel);
         }
         book->AddToken(isNewSentence, isNewUnroll,
-                       tokenPos, wordIndex,
+                       tokenPos, wordIndexAsContext, wordIndexAsTarget,
                        tokenDiscount, labelIndex);
         // We are no longer at beginning of a sentence or unroll
         isNewSentence = false;

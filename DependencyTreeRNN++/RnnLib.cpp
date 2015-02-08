@@ -602,7 +602,8 @@ m_areSentencesIndependent(true)
         m_learningRate = val;
         
         GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_doStartReducingLearningRate);
+        fscanf(fi, "%d", &booleanVal);
+        m_doStartReducingLearningRate = (booleanVal > 0);
         
         GoToDelimiterInFile(':', fi);
         

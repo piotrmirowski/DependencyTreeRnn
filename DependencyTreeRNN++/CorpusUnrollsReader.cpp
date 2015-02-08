@@ -11,8 +11,8 @@
  * Add a token to the book
  */
 void BookUnrolls::AddToken(bool isNewSentence, bool isNewUnroll,
-                           int pos, int word, double discount,
-                           int label) {
+                           int pos, int wordAsContext, int wordAsTarget,
+                           double discount, int label) {
   
   // Add a new sentence?
   if (isNewSentence) {
@@ -40,7 +40,8 @@ void BookUnrolls::AddToken(bool isNewSentence, bool isNewUnroll,
   // Add a new token
   Token newToken;
   newToken.pos = pos;
-  newToken.word = word;
+  newToken.wordAsContext = wordAsContext;
+  newToken.wordAsTarget = wordAsTarget;
   newToken.discount = discount;
   newToken.label = label;
   _sentences[_sentenceIndex][_unrollIndex].push_back(newToken);
