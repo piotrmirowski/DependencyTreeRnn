@@ -55,6 +55,7 @@
 #include <algorithm>
 #include <sstream>
 #include <fstream>
+#include <climits>
 
 #include <math.h>
 #include <time.h>

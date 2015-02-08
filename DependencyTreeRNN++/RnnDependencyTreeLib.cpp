@@ -65,7 +65,7 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile() {
   m_numTrainWords =
   m_corpusVocabulary.ReadVocabulary(m_typeOfDepLabels == 1);
   
-  // Filter the vocabulary based on frequency (>= 3)
+  // Filter the vocabulary based on frequency
   // and sort it based on frequency
   m_corpusTrain.FilterSortVocabulary(m_corpusVocabulary);
   
@@ -96,6 +96,7 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile() {
   
   // The first word needs to be end-of-sentence? TBD...
   AddWordToVocabulary("</s>");
+  //AddWordToVocabulary("<unk>");
   
   // Copy the words currently in the corpus
   // and insert them into the vocabulary of the RNN
@@ -133,8 +134,12 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile() {
   
   // Copy the vocabulary to the other corpus
   m_corpusValidTest.CopyVocabulary(m_corpusTrain);
+
+  // Note the <unk> (OOV) tag
+  m_oov = SearchWordInVocabulary("<unk>");
   
   printf("Vocab size: %d\n", GetVocabularySize());
+  printf("Unknown tag at: %d\n", m_oov);
   printf("Label vocab size: %d\n", GetLabelSize());
   printf("Words in train file: %ld\n", m_numTrainWords);
   return true;
@@ -279,7 +284,7 @@ bool RnnTreeLM::TrainRnnModel() {
             t0 = t1;
             
             // For perplexity, we do not count OOV words...
-            if (targetWord >= 0) {
+            if ((targetWord >= 0) && (targetWord != m_oov)) {
               // Compute the log-probability of the current word
               int outputNodeClass =
               m_vocabularyStorage[targetWord].classIndex + GetVocabularySize();
@@ -531,6 +536,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
   ForwardPropagateRecurrentConnectionOnly(m_state);
   
   // Loop over the books
+  if (m_debugMode) { cout << "New book\n"; }
   for (int idxBook = 0; idxBook < m_corpusValidTest.NumBooks(); idxBook++) {
     // Read the next book
     m_corpusValidTest.NextBook();
@@ -539,6 +545,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
     
     // Loop over the sentences in the book
     book.ResetSentence();
+    if (m_debugMode) { cout << "  New sentence\n"; }
     for (int idxSentence = 0; idxSentence < book.NumSentences(); idxSentence++) {
       // Initialize a map of log-likelihoods for each token
       unordered_map<int, double> logProbSentence;
@@ -548,6 +555,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
       // Loop over the unrolls in each sentence
       book.ResetUnroll();
       int numUnrolls = book.NumUnrolls(idxSentence);
+      if (m_debugMode) { cout << "    New unroll\n"; }
       for (int idxUnroll = 0; idxUnroll < numUnrolls; idxUnroll++)
       {
         // Reset the state of the neural net before each unroll
@@ -570,7 +578,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
           int nextContextWord = book.CurrentTokenWordAsContext();
           int targetWord = book.CurrentTokenWordAsTarget();
           int targetLabel = book.CurrentTokenLabel();
-
+          
           if (m_typeOfDepLabels == 2) {
             // Update the feature matrix with the last dependency label
             UpdateFeatureLabelVector(contextLabel, m_state);
@@ -581,7 +589,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
           ForwardPropagateOneStep(contextWord, targetWord, m_state);
           
           // For perplexity, we do not count OOV words...
-          if ((targetWord >= 0) && (targetWord != 1)) {
+          if ((targetWord >= 0) && (targetWord != m_oov)) {
             // Compute the log-probability of the current word
             int outputNodeClass =
             m_vocabularyStorage[targetWord].classIndex + GetVocabularySize();
@@ -615,6 +623,14 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
               // We have already use the word's log-probability in the score
               // but let's make a safety check
               assert(logProbSentence[tokenNumber] == logProbabilityWord);
+              if (m_debugMode) {
+                cout << tokenNumber << "\t"
+                     << targetWord << "\t"
+                     << logProbabilityWord << "\t"
+                     << m_vocabularyStorage[contextWord].word << "\t"
+                     << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
+                     << m_vocabularyStorage[targetWord].word << "\t(already seen)\n";
+              }
             }
           } else {
             if (m_debugMode) {

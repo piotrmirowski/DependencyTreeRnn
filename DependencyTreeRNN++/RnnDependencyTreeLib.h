@@ -41,7 +41,7 @@ public:
   RnnTreeLM(const std::string &filename, bool debugMode, bool isBinary)
   // We do not load the RNN, simply set its filename
   : RnnLMTraining(filename, debugMode, isBinary),
-  m_typeOfDepLabels(0) {
+  m_typeOfDepLabels(0), m_oov(1) {
   }
   
 public:
@@ -124,6 +124,11 @@ protected:
    * Label vocabulary representation (label -> index of the label)
    */
   int m_typeOfDepLabels;
+  
+  /**
+   * Index of the OOV (<unk>) word
+   */
+  int m_oov;
   
   /**
    * Label vocabulary representation (label -> index of the label)
