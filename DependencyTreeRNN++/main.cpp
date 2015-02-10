@@ -76,10 +76,11 @@ int main(int argc, char *argv[])
   parser.Register("train", "string", "Training data file (pure text)");
   parser.Register("valid", "string", "Validation data file (pure text), using during training");
   parser.Register("test", "string", "Test data file (pure text)");
+  parser.Register("sentence-labels", "string", "Validation/test sentence labels file (pure text)");
   parser.Register("path-json-books", "string", "Path to the book JSON files", "./");
   parser.Register("rnnlm", "string", "RNN language model file to use (save in training / read in test)");
   parser.Register("features", "string", "Potentially ginouromous auxiliary feature file for training/test data, with one vector per training/test word");
-  parser.Register("features-valid", "string", "Potentially ginourmous auxiliary feature file for validation data, with one vector per test word");
+  parser.Register("features-valid", "string", "Potentially ginourmous auxiliary feature file for validation data, with one vector per validation word");
   parser.Register("feature-matrix", "string", "Topic model matrix with word representations (e.g., LDA, LSA, Word2Vec, etc...)");
   parser.Register("feature-labels-type", "int", "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
   parser.Register("feature-gamma", "double", "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
@@ -148,6 +149,20 @@ int main(int argc, char *argv[])
     cout << "ERROR: training or testing file must be specified!\n";
     return 1;
   }
+  // Search for test file
+  string sentenceLabelsFilename;
+  bool isSentenceLabelsSet = parser.Get("sentence-labels", sentenceLabelsFilename);
+  if (isSentenceLabelsSet) {
+    ifstream checkStream(sentenceLabelsFilename);
+    if (!checkStream) {
+      cout << "ERROR: sentence labels file not found!\n";
+      return 1;
+    }
+  }
+  if (!isTestDataSet && !isTrainDataSet) {
+    cout << "ERROR: training or testing file must be specified!\n";
+    return 1;
+  }
   // Search for the RNN model file
   string rnnModelFilename;
   bool isRnnModelSet = parser.Get("rnnlm", rnnModelFilename);
@@ -187,7 +202,7 @@ int main(int argc, char *argv[])
     // Read the number of features
     featureStream >> numFeatures;
   }
-  // Search for validation features file
+  // Search for validation/test features file
   string featureValidFilename;
   bool isFeatureValidFileSet =
   parser.Get("features-valid", featureValidFilename);
@@ -335,6 +350,9 @@ int main(int argc, char *argv[])
      model.SetFeatureMatrixFile(featureMatrixFilename);
      }
      */
+
+    // Set the sentence labels for validation or test
+    model.SetSentenceLabelsFile(sentenceLabelsFilename);
     
     // Set the type of dependency labels
     model.SetDependencyLabelType(featureDepLabelsType);

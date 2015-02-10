@@ -1428,6 +1428,8 @@ void RnnLMTraining::LoadCorrectSentenceLabels(const std::string &labelFile)
   while (file >> label) {
     m_correctSentenceLabels.push_back(label);
   }
+  cout << "Loaded correct labels for " << m_correctSentenceLabels.size()
+       << " validation/test sentences\n";
   file.close();
 }
 

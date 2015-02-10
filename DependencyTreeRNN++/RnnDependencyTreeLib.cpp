@@ -192,10 +192,10 @@ bool RnnTreeLM::TrainRnnModel() {
   }
   
   // Load the labels
-  LoadCorrectSentenceLabels("/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/valid.labels");
+  LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   
   // Log file
-  string logFilename = "/Users/piotr/Documents/Projets/Microsoft/Data/Log.txt";
+  string logFilename = m_rnnModelFile + ".log.txt";
   ofstream logFile(logFilename);
   cout << "Starting training tree-dependent LM using list of books "
   << m_trainFile << "...\n";

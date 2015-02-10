@@ -75,7 +75,8 @@ public:
   // We load the RNN from filename
   : RnnLM(filename, true),
   m_debugMode(debugMode),
-  m_wordCounter(0) {
+  m_wordCounter(0),
+  m_fileCorrectSentenceLabels("") {
   }
   
   /// <summary>
@@ -95,6 +96,10 @@ public:
   
   void SetValidFile(const std::string &str) {
     m_validationFile = str;
+  }
+  
+  void SetSentenceLabelsFile(const std::string &str) {
+    m_fileCorrectSentenceLabels = str;
   }
   
   void SetFeatureTrainOrTestFile(const std::string &str) {
@@ -373,6 +378,11 @@ protected:
   /// Classification labels
   /// </summary>
   std::vector<int> m_correctSentenceLabels;
+  
+  /// <summary>
+  /// File containing the correct classification labels
+  /// </summary>
+  std::string m_fileCorrectSentenceLabels;
 };
 
 #endif /* defined(__DependencyTreeRNN____RnnTraining__) */
