@@ -355,7 +355,7 @@ bool RnnTreeLM::TrainRnnModel() {
             // Back-propagate the error and run one step of
             // stochastic gradient descent (SGD) using optional
             // back-propagation through time (BPTT)
-            //BackPropagateErrorsThenOneStepGradientDescent(contextWord, targetWord);
+            BackPropagateErrorsThenOneStepGradientDescent(contextWord, targetWord);
             t1 = clock();
             timeBackProp += t1 - t0;
             t0 = t1;

@@ -227,19 +227,6 @@ bool RnnLMTraining::LearnVocabularyFromTrainFile()
 
 
 /// <summary>
-/// Save a matrix of floats in text format
-/// </summary>
-void SaveTextMatrix(FILE *fo, int sizeIn, int sizeOut, const vector<double> &vec)
-{
-  for (int idxOut = 0; idxOut < sizeOut; idxOut++) {
-    for (int idxIn = 0; idxIn < sizeIn; idxIn++) {
-      fprintf(fo, "%.8f\n", vec[idxIn + idxOut * sizeIn]);
-    }
-  }
-}
-
-
-/// <summary>
 /// Save a matrix of floats in binary format
 /// </summary>
 void SaveBinaryMatrix(FILE *fo, int sizeIn, int sizeOut, const vector<double> &vec)
@@ -252,19 +239,6 @@ void SaveBinaryMatrix(FILE *fo, int sizeIn, int sizeOut, const vector<double> &v
       float val = (float)(vec[idxIn + idxOut * sizeIn]);
       fwrite(&val, 4, 1, fo);
     }
-  }
-}
-
-
-/// <summary>
-/// Save a vector of floats in text format
-/// </summary>
-void SaveTextVector(FILE *fo, long long size, const vector<double> &vec)
-{
-  for (long long aa = 0; aa < size; aa++) {
-    float val = vec[aa];
-    fprintf(fo, "%.4f\n", val);
-    fwrite(&val, 4, 1, fo);
   }
 }
 
