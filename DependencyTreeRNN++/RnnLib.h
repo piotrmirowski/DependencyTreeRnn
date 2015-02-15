@@ -127,6 +127,11 @@ public:
           bool doLoadModel);
     
     /// <summary>
+    /// Assign words in vocabulary to classes (for hierarchical softmax).
+    /// </summary>
+    bool AssignWordsToClasses();
+    
+    /// <summary>
     /// Return the number of words/entity tokens in the vocabulary.
     /// </summary>
     /// <returns>Integer number</returns>
@@ -475,7 +480,6 @@ protected:
     /// </summary>
     std::string m_rnnModelFile;
     int m_rnnModelVersion;
-    bool m_isRnnModelFileBinary;
     
     /// <summary>
     /// Topic features
@@ -520,7 +524,6 @@ protected:
     std::set<int> m_classes;
     int m_numOutputClasses;
     std::vector<std::vector<int> > m_classWords;
-    int m_numOldClasses;
     bool m_usesClassFile;
     
     /// <summary>

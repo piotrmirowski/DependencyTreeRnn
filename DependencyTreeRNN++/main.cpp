@@ -57,10 +57,10 @@
 #include <fstream>
 #include <iostream>
 #include <fstream>
-
-// Additions
+#include <assert.h>
 #include <vector>
 #include <time.h>
+
 #include "CommandLineParser.h"
 #include "RnnDependencyTreeLib.h"
 #include "RnnTraining.h"
@@ -97,7 +97,6 @@ int main(int argc, char *argv[])
   parser.Register("direct-order", "int", "Order of direct n-gram connections; 2 is like bigram max ent features", "3");
   parser.Register("bptt", "int", "Number of steps to propagate error back in time", "4");
   parser.Register("bptt-block", "int", "Number of time steps after which the error is backpropagated through time", "10");
-  parser.Register("binary", "bool", "Save model in binary format", "true");
   parser.Register("unk-penalty", "double", "Penalty to add to <unk> in rescoring; normalizes type vs. token distinction", "-11");
   parser.Register("min-word-occurrence", "int", "Mininum word occurrence to include word into vocabulary", "3");
   
@@ -170,12 +169,15 @@ int main(int argc, char *argv[])
     cout << "ERROR: RNN model file not specified\n";
     return 1;
   }
-  if (isRnnModelSet && isTestDataSet) {
-    ifstream checkStream(rnnModelFilename);
-    if (!checkStream) {
-      cout << "ERROR: RNN model file not found!\n";
-      return 1;
-    }
+  bool isRnnModelPresent = false;
+  ifstream checkStream(rnnModelFilename);
+  if (checkStream) {
+    cout << "RNN model file exists\n";
+    isRnnModelPresent = true;
+  }
+  if (isRnnModelSet && isTestDataSet && !isRnnModelPresent) {
+    cout << "ERROR: RNN model file not found!\n";
+    return 1;
   }
   // Search for the JSON book files path
   string jsonPathname;
@@ -298,9 +300,6 @@ int main(int argc, char *argv[])
   if (bpttBlock < 1) {
     bpttBlock = 1;
   }
-  // Is the model binary?
-  bool isRnnModelFileBinary = true;
-  parser.Get("binary", isRnnModelFileBinary);
   // Penalty for <unk>
   double unkPenalty = -11;
   parser.Get("unk-penalty", unkPenalty);
@@ -310,8 +309,8 @@ int main(int argc, char *argv[])
   
   if (isTrainDataSet && isRnnModelSet) {
     // Construct the RNN object, setting the filename, without loading anything
-    //RnnLMTraining model(rnnModelFilename, debugMode, isRnnModelFileBinary);
-    RnnTreeLM model(rnnModelFilename, debugMode, isRnnModelFileBinary);
+    //RnnLMTraining model(rnnModelFilename, loadModel, debugMode);
+    RnnTreeLM model(rnnModelFilename, isRnnModelPresent, debugMode);
     
     // Add the book names to the training corpus
     ifstream trainFileStream(trainFilename);
@@ -353,12 +352,6 @@ int main(int argc, char *argv[])
 
     // Set the sentence labels for validation or test
     model.SetSentenceLabelsFile(sentenceLabelsFilename);
-    
-    // Set the type of dependency labels
-    model.SetDependencyLabelType(featureDepLabelsType);
-    // Set the feature label decay (gamma) weight
-    model.SetFeatureGamma(featureGammaCoeff);
-    
     // Do we use custom classes?
     // In a weird way, we read the classes before initializing the RNN
     if (isClassFileSet) {
@@ -367,35 +360,52 @@ int main(int argc, char *argv[])
     
     // Set the minimum number of word occurrence
     model.SetMinWordOccurrence(minWordOccurrence);
-    
     // Extract the vocabulary from the training file
     model.LearnVocabularyFromTrainFile();
+
     int sizeVocabulary = static_cast<int>(model.m_vocabularyStorage.size());
     int sizeVocabLabels =
     (featureDepLabelsType == 2) ? static_cast<int>(model.GetLabelSize()) : 0;
-    // Inputs are: vocabulary + hidden state s(t-1) at previous step
-    int sizeInput = sizeVocabulary;
-    // Outputs are: word classes + words from vocabulary
-    int sizeOutput = sizeVocabulary + numClasses;
-    model.InitializeRnnModel(sizeInput,
-                             sizeHiddenLayer,
-                             sizeCompressionLayer,
-                             sizeOutput,
-                             sizeVocabLabels,
-                             sizeDirectNGramConnections,
-                             model.m_state,
-                             model.m_weights,
-                             model.m_bpttVectors);
-    model.SetDirectOrder(orderDirectNGramConnections);
-    
-    // Now set the learning parameters
-    model.SetLearningRate(startingLearningRate);
-    model.SetGradientCutoff(gradientCutoff);
-    model.SetRegularization(regularization);
-    model.SetMinImprovement(minLogProbaImprovement);
-    model.SetNumStepsBPTT(bptt);
-    model.SetBPTTBlock(bpttBlock);
-    model.SetIndependent(independent);
+    if (!isRnnModelPresent) {
+      // Initialize the model...
+      model.InitializeRnnModel(sizeVocabulary,
+                               sizeHiddenLayer,
+                               sizeCompressionLayer,
+                               sizeVocabulary + numClasses,
+                               sizeVocabLabels,
+                               sizeDirectNGramConnections,
+                               model.m_state,
+                               model.m_weights,
+                               model.m_bpttVectors);
+      // Set the direct connections n-gram order
+      model.SetDirectOrder(orderDirectNGramConnections);
+      // Set the type of dependency labels
+      model.SetDependencyLabelType(featureDepLabelsType);
+      // Set the feature label decay (gamma) weight
+      model.SetFeatureGamma(featureGammaCoeff);
+    } else {
+      // ... or check that the model specification corresponds to what is loaded
+      assert(model.GetInputSize() == sizeVocabulary);
+      assert(model.GetHiddenSize() == sizeHiddenLayer);
+      assert(model.GetCompressSize() == sizeCompressionLayer);
+      assert(model.GetOutputSize() == sizeVocabulary + numClasses);
+      assert(model.GetFeatureSize() == sizeVocabLabels);
+      assert(model.GetNumDirectConnections() == sizeDirectNGramConnections);
+      // One thing needs to be done: assign the words to classes!
+      model.AssignWordsToClasses();
+    }
+
+    // When the model's training is restarting, these learning parameters
+    // are simply ignored
+    if (!isRnnModelPresent) {
+      model.SetLearningRate(startingLearningRate);
+      model.SetGradientCutoff(gradientCutoff);
+      model.SetRegularization(regularization);
+      model.SetMinImprovement(minLogProbaImprovement);
+      model.SetNumStepsBPTT(bptt);
+      model.SetBPTTBlock(bpttBlock);
+      model.SetIndependent(independent);
+    }
     
     // Train the model
     model.TrainRnnModel();
@@ -403,7 +413,9 @@ int main(int argc, char *argv[])
   
   // Test the RNN on the dataset
   if (isTestDataSet && isRnnModelSet) {
-    RnnLMTraining model(rnnModelFilename, debugMode);
+    RnnLMTraining model(rnnModelFilename, true, debugMode);
+    // One thing needs to be done: assign the words to classes!
+    model.AssignWordsToClasses();
     
     // Test the RNN on the test data
     int testWordCount = 0;

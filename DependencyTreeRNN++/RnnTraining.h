@@ -69,25 +69,15 @@ class RnnLMTraining : public RnnLM {
 public:
   
   /// <summary>
-  /// Constructor for testing the model
+  /// Constructor for training the model
   /// </summary>
-  RnnLMTraining(const std::string &filename, bool debugMode)
-  // We load the RNN from filename
-  : RnnLM(filename, true),
+  RnnLMTraining(const std::string &filename, bool doLoadModel, bool debugMode)
+  // We load the RNN or not, depending on whether the model file is present
+  // otherwise simply set its filename
+  : RnnLM(filename, doLoadModel),
   m_debugMode(debugMode),
   m_wordCounter(0),
   m_fileCorrectSentenceLabels("") {
-  }
-  
-  /// <summary>
-  /// Constructor for training the model
-  /// </summary>
-  RnnLMTraining(const std::string &filename, bool debugMode, bool isBinary)
-  // We do not load the RNN, simply set its filename
-  : RnnLM(filename, false),
-  m_debugMode(debugMode),
-  m_wordCounter(0) {
-    m_isRnnModelFileBinary = isBinary;
   }
   
   void SetTrainFile(const std::string &str) {
@@ -116,14 +106,6 @@ public:
   
   void SetUnkPenalty(double penalty) {
     m_logProbabilityPenaltyUnk = penalty;
-  }
-  
-  void SetRnnModelFileBinary(bool isBinary) {
-    m_isRnnModelFileBinary = isBinary;
-  }
-  
-  void SetOldClasses(int newVal) {
-    m_numOldClasses = newVal;
   }
   
   void SetGradientCutoff(double newGradient) {

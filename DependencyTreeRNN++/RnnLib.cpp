@@ -242,13 +242,15 @@ bool RnnLM::InitializeRnnModel(int sizeInput,
         bptt.WeightsFeature2Hidden.assign(sizeFeature * sizeHidden, 0);
     }
     
-    double df = 0;
-    double dd = 0;
-    int a = 0;
-    int b = 0;
-    
+    return AssignWordsToClasses();
+}
+
+
+/// <summary>
+/// Assign words in vocabulary to classes (for hierarchical softmax).
+/// </summary>
+bool RnnLM::AssignWordsToClasses() {
     int sizeVocabulary = GetVocabularySize();
-    
     if (m_usesClassFile)
     {
         // Custom-specified classes, provided in a file, were used
@@ -276,14 +278,18 @@ bool RnnLM::InitializeRnnModel(int sizeInput,
         // Frequency-based classes (povey-style)
         // Re-assign classes based on the sqrt(word_count / total_word_count)
         // so that the classes contain equal weight of word occurrences.
+        int b = 0;
         for (int i = 0; i < sizeVocabulary; i++)
         {
             b += m_vocabularyStorage[i].cn;
         }
+        double dd = 0;
         for (int i = 0; i < sizeVocabulary; i++)
         {
             dd += sqrt(m_vocabularyStorage[i].cn/ (double)b);
         }
+        double df = 0;
+        int a = 0;
         for (int i = 0; i < sizeVocabulary; i++)
         {
             df += sqrt(m_vocabularyStorage[i].cn / (double)b)/dd;
@@ -311,6 +317,10 @@ bool RnnLM::InitializeRnnModel(int sizeInput,
     // Store which words are in which class,
     // using a vector (length number of classes) of vectors (num words in that class)
     m_classWords.resize(m_numOutputClasses);
+    for (int i = 0; i < m_numOutputClasses; i++)
+    {
+        m_classWords[i].clear();
+    }
     for (int i = 0; i < sizeVocabulary; i++)
     {
         // Assign each word into its class
@@ -332,23 +342,6 @@ bool RnnLM::InitializeRnnModel(int sizeInput,
 
 
 /// <summary>
-/// Read a matrix of floats in text format
-/// </summary>
-void ReadTextMatrix(FILE *fi, int sizeIn, int sizeOut, vector<double> &vec)
-{
-    for (int b = 0; b < sizeOut; b++)
-    {
-        for (int a = 0; a < sizeIn; a++)
-        {
-            double val;
-            fscanf(fi, "%lf", &val);
-            vec[a + b * sizeIn] = val;
-        }
-    }
-}
-
-
-/// <summary>
 /// Read a matrix of floats in binary format
 /// </summary>
 void ReadBinaryMatrix(FILE *fi, int sizeIn, int sizeOut, vector<double> &vec)
@@ -365,20 +358,6 @@ void ReadBinaryMatrix(FILE *fi, int sizeIn, int sizeOut, vector<double> &vec)
             fread(&val, 4, 1, fi);
             vec[idxIn + idxOut * sizeIn] = val;
         }
-    }
-}
-
-
-/// <summary>
-/// Read a vector of floats in text format
-/// </summary>
-void ReadTextVector(FILE *fi, long long size, vector<double> &vec)
-{
-    for (long long aa = 0; aa < size; aa++)
-    {
-        double val;
-        fscanf(fi, "%lf", &val);
-        vec[aa] = val;
     }
 }
 
@@ -433,8 +412,7 @@ m_isModelLoaded(false),
 // Filename and type
 m_rnnModelFile(filename),
 // Internal model file version
-m_rnnModelVersion(13),
-m_isRnnModelFileBinary(true),
+m_rnnModelVersion(20),
 // Vanilla RNN without topic features
 m_featureGammaCoeff(0.9),
 m_featureMatrixUsed(false),
@@ -454,7 +432,6 @@ m_numTrainWords(0),
 m_currentPosTrainFile(0),
 // 200 classes by default
 m_numOutputClasses(200),
-m_numOldClasses(0),
 // Use of a class file?
 m_usesClassFile(false),
 // Vanilla RNN without direct n-gram connections
@@ -475,9 +452,9 @@ m_areSentencesIndependent(true)
         }
         
         GoToDelimiterInFile(':', fi);
-        int ver = 13;
+        int ver = m_rnnModelVersion;
         fscanf(fi, "%d", &ver);
-        if (ver != m_rnnModelVersion)
+        if ((ver > m_rnnModelVersion) || (ver <= 6))
         {
             throw new runtime_error("Unknown version of file " + m_rnnModelFile);
         }
@@ -485,7 +462,9 @@ m_areSentencesIndependent(true)
         GoToDelimiterInFile(':', fi);
         int binValue = 0;
         fscanf(fi, "%d", &binValue);
-        m_isRnnModelFileBinary = (binValue > 0);
+        if (binValue == 0) {
+            throw new runtime_error("Old text models not supported");
+        }
         
         GoToDelimiterInFile(':', fi);
         fscanf(fi, "%s", buffer);
@@ -547,30 +526,17 @@ m_areSentencesIndependent(true)
         fscanf(fi, "%d", &sizeOutput);
         
         long long sizeDirectConnection = 0;
-        if (ver > 5)
-        {
-            GoToDelimiterInFile(':', fi);
-            fscanf(fi, "%lld", &sizeDirectConnection);
-        }
+        GoToDelimiterInFile(':', fi);
+        fscanf(fi, "%lld", &sizeDirectConnection);
         
-        if (ver > 6)
-        {
-            GoToDelimiterInFile(':', fi);
-            fscanf(fi, "%d", &m_directConnectionOrder);
-        }
+        GoToDelimiterInFile(':', fi);
+        fscanf(fi, "%d", &m_directConnectionOrder);
         
         GoToDelimiterInFile(':', fi);
         fscanf(fi, "%d", &m_numBpttSteps);
         
-        if (ver > 4)
-        {
-            GoToDelimiterInFile(':', fi);
-            fscanf(fi, "%d", &m_bpttBlockSize);
-        }
-        else
-        {
-            m_bpttBlockSize = 10;
-        }
+        GoToDelimiterInFile(':', fi);
+        fscanf(fi, "%d", &m_bpttBlockSize);
         
         GoToDelimiterInFile(':', fi);
         int sizeVocabulary = 0;
@@ -580,7 +546,8 @@ m_areSentencesIndependent(true)
         fscanf(fi, "%d", &m_numOutputClasses);
         
         GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_numOldClasses);
+        int dummyOldClasses = 0;
+        fscanf(fi, "%d", &dummyOldClasses);
         
         GoToDelimiterInFile(':', fi);
         int booleanVal = 0;
@@ -648,99 +615,46 @@ m_areSentencesIndependent(true)
                            m_weights,
                            m_bpttVectors);
         m_featureMatrixUsed = a;
-        
+
         // Read the activations on the hidden layer
-        if (!m_isRnnModelFileBinary)
-        {
-            GoToDelimiterInFile(':', fi);
-            ReadTextVector(fi, sizeHidden, m_state.HiddenLayer);
-        }
-        else
-        {
-            fgetc(fi);
-            //printf("BINARY Loading %d-dim hidden state...\n", sizeHidden);
-            ReadBinaryVector(fi, sizeHidden, m_state.HiddenLayer);
-        }
+        fgetc(fi);
+        ReadBinaryVector(fi, sizeHidden, m_state.HiddenLayer);
         
-        if (!m_isRnnModelFileBinary)
+        // Read the weights of input -> hidden connections
+        ReadBinaryMatrix(fi, sizeInput, sizeHidden, m_weights.Input2Hidden);
+        // Read the weights of recurrent hidden -> hidden connections
+        ReadBinaryMatrix(fi, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
+        // Read the weights of feature -> hidden connections
+        ReadBinaryMatrix(fi, sizeFeature, sizeHidden, m_weights.Features2Hidden);
+        // Read the weights of feature -> output connections
+        ReadBinaryMatrix(fi, sizeFeature, sizeOutput, m_weights.Features2Output);
+        if (sizeCompress == 0)
         {
-            // Read the weights of input -> hidden connections
-            GoToDelimiterInFile(':', fi);
-            ReadTextMatrix(fi, sizeInput, sizeHidden, m_weights.Input2Hidden);
-            // Read the weights of recurrent hidden -> hidden connections
-            GoToDelimiterInFile(':', fi);
-            ReadTextMatrix(fi, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-            // Read the weights of feature -> hidden connections
-            GoToDelimiterInFile(':', fi);
-            ReadTextMatrix(fi, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-            // Read the weights of feature -> output connections
-            GoToDelimiterInFile(':', fi);
-            ReadTextMatrix(fi, sizeFeature, sizeOutput, m_weights.Features2Output);
-            if (sizeCompress == 0)
-            {
-                // Read the weights of hidden -> output connections
-                GoToDelimiterInFile(':', fi);
-                ReadTextMatrix(fi, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-            }
-            else
-            {
-                // Read the weights of hidden -> compression connections
-                GoToDelimiterInFile(':', fi);
-                ReadTextMatrix(fi, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-                // Read the weights of compression -> output connections
-                GoToDelimiterInFile(':', fi);
-                ReadTextMatrix(fi, sizeCompress, sizeOutput, m_weights.Compress2Output);
-            }
-            // Read the direct connections
-            GoToDelimiterInFile(':', fi);
-            ReadTextVector(fi, sizeDirectConnection, m_weights.DirectNGram);
-            // Read the feature matrix
-            if (m_featureMatrixUsed)
-            {
-                m_featureMatrix.resize(sizeVocabulary * sizeFeature);
-                GoToDelimiterInFile(':', fi);
-                ReadTextMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
-            }
+            // Read the weights of hidden -> output connections
+            ReadBinaryMatrix(fi, sizeHidden, sizeOutput, m_weights.Hidden2Output);
         }
         else
         {
-            // Read the weights of input -> hidden connections
-            ReadBinaryMatrix(fi, sizeInput, sizeHidden, m_weights.Input2Hidden);
-            // Read the weights of recurrent hidden -> hidden connections
-            ReadBinaryMatrix(fi, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-            // Read the weights of feature -> hidden connections
-            ReadBinaryMatrix(fi, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-            // Read the weights of feature -> output connections
-            ReadBinaryMatrix(fi, sizeFeature, sizeOutput, m_weights.Features2Output);
-            if (sizeCompress == 0)
-            {
-                // Read the weights of hidden -> output connections
-                ReadBinaryMatrix(fi, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-            }
-            else
-            {
-                // Read the weights of hidden -> compression connections
-                ReadBinaryMatrix(fi, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-                // Read the weights of compression -> output connections
-                ReadBinaryMatrix(fi, sizeCompress, sizeOutput, m_weights.Compress2Output);
-            }
-            if (sizeDirectConnection > 0)
-            {
-                // Read the direct connections
-                ReadBinaryVector(fi, sizeDirectConnection, m_weights.DirectNGram);
-            }
-            // Read the feature matrix
-            if (m_featureMatrixUsed)
-            {
-                ReadBinaryMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
-                m_featureMatrix.resize(GetVocabularySize() * sizeFeature);
-            }
+            // Read the weights of hidden -> compression connections
+            ReadBinaryMatrix(fi, sizeHidden, sizeCompress, m_weights.Hidden2Output);
+            // Read the weights of compression -> output connections
+            ReadBinaryMatrix(fi, sizeCompress, sizeOutput, m_weights.Compress2Output);
+        }
+        if (sizeDirectConnection > 0)
+        {
+            // Read the direct connections
+            ReadBinaryVector(fi, sizeDirectConnection, m_weights.DirectNGram);
+        }
+        // Read the feature matrix
+        if (m_featureMatrixUsed)
+        {
+            ReadBinaryMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
+            m_featureMatrix.resize(GetVocabularySize() * sizeFeature);
         }
         fclose(fi);
         
         // Reset the state of the RNN
         ResetHiddenRnnStateAndWordHistory(m_state, m_bpttVectors);
-        
         m_isModelLoaded = true;
     }
 }
@@ -872,7 +786,6 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
     // to the current value s(t) of the hidden layer at time t
     // Operation: s(t) <- W * s(t-1)
     // Note that s(t-1) was previously copied to the recurrent input layer.
-    int sizeInput = GetInputSize();
     MultiplyMatrixXvector(state.HiddenLayer,
                           state.RecurrentLayer,
                           m_weights.Recurrent2Hidden,
@@ -885,6 +798,7 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
     // to the hidden layer s(t) at time t
     // Operation: s(t) <- s(t) + U * w(t)
     // Note that we add to s(t) which is already non-zero.
+    int sizeInput = GetInputSize();
     if (lastWord != -1)
     {
         for (int b = 0; b < sizeHidden; b++)

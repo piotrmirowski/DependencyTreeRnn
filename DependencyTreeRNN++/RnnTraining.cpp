@@ -292,7 +292,7 @@ bool RnnLMTraining::SaveRnnModelToFile()
     return false;
   }
   fprintf(fo, "version: %d\n", m_rnnModelVersion);
-  fprintf(fo, "file format: %d\n\n", m_isRnnModelFileBinary ? 1 : 0);
+  fprintf(fo, "file format: 1\n\n");
   
   fprintf(fo, "training data file: %s\n", m_trainFile.c_str());
   fprintf(fo, "validation data file: %s\n\n", m_validationFile.c_str());
@@ -328,7 +328,7 @@ bool RnnLMTraining::SaveRnnModelToFile()
   fprintf(fo, "vocabulary size: %d\n", GetVocabularySize());
   fprintf(fo, "class size: %d\n", m_numOutputClasses);
   
-  fprintf(fo, "old classes: %d\n", m_numOldClasses);
+  fprintf(fo, "old classes: 0\n");
   fprintf(fo, "uses class file: %d\n", m_usesClassFile ? 1 : 0);
   fprintf(fo, "independent sentences mode: %d\n",
           m_areSentencesIndependent ? 1 : 0);
@@ -356,116 +356,53 @@ bool RnnLMTraining::SaveRnnModelToFile()
   int sizeOutput = GetOutputSize();
   long sizeDirectConnection = GetNumDirectConnections();
   
-  if (!m_isRnnModelFileBinary) {
-    // Save the activations on the hidden layer
-    // (used only if the training was interrupted)
+  if (m_debugMode)
+    printf("BINARY Saving %d hidden activations...\n", sizeHidden);
+  SaveBinaryVector(fo, sizeHidden, m_state.HiddenLayer);
+  // Save the weights U: input -> hidden (i.e., the word embeddings)
+  if (m_debugMode)
+    printf("BINARY Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
+  SaveBinaryMatrix(fo, sizeInput, sizeHidden, m_weights.Input2Hidden);
+  // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
+  if (m_debugMode)
+    printf("BINARY Saving %dx%d recurrent hidden->hidden weights...\n", sizeHidden, sizeHidden);
+  SaveBinaryMatrix(fo, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
+  // Save the weights feature -> hidden
+  if (m_debugMode)
+    printf("BINARY Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
+  SaveBinaryMatrix(fo, sizeFeature, sizeHidden, m_weights.Features2Hidden);
+  // Save the weights G: feature -> output
+  if (m_debugMode)
+    printf("BINARY Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
+  SaveBinaryMatrix(fo, sizeFeature, sizeOutput, m_weights.Features2Output);
+  // Save the weights hidden -> compress and compress -> output
+  // or simply the weights V: hidden -> output
+  if (sizeCompress > 0) {
     if (m_debugMode)
-      printf("TEXT Saving %d hidden activations...\n", sizeHidden);
-    fprintf(fo, "\nHidden layer activation:\n");
-    SaveTextVector(fo, sizeHidden, m_state.HiddenLayer);
-    // Save the weights U: input -> hidden (i.e., the word embeddings)
+      printf("BINARY Saving %dx%d hidden->compress weights...\n", sizeCompress, sizeHidden);
+    SaveBinaryMatrix(fo, sizeHidden, sizeCompress, m_weights.Hidden2Output);
     if (m_debugMode)
-      printf("TEXT Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
-    fprintf(fo, "\nWeights input->hidden:\n");
-    SaveTextMatrix(fo, sizeInput, sizeHidden, m_weights.Input2Hidden);
-    // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
+      printf("BINARY Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
+    SaveBinaryMatrix(fo, sizeCompress, sizeOutput, m_weights.Compress2Output);
+  } else {
     if (m_debugMode)
-      printf("TEXT Saving %dx%d recurrent->hidden weights...\n", sizeHidden, sizeHidden);
-    fprintf(fo, "\nWeights recurrent->hidden:\n");
-    SaveTextMatrix(fo, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-    // Save the weights F: feature -> hidden
+      printf("BINARY Saving %dx%d hidden->output weights...\n", sizeOutput, sizeHidden);
+    SaveBinaryMatrix(fo, sizeHidden, sizeOutput, m_weights.Hidden2Output);
+  }
+  if (sizeDirectConnection > 0) {
+    // Save the direct connections
     if (m_debugMode)
-      printf("TEXT Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
-    fprintf(fo, "\nWeights features->hidden:\n");
-    SaveTextMatrix(fo, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-    // Save the weights G: feature -> output
-    if (m_debugMode)
-      printf("TEXT Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
-    fprintf(fo, "\nWeights features->output:\n");
-    SaveTextMatrix(fo, sizeFeature, sizeOutput, m_weights.Features2Output);
-    // Save the weights hidden -> compress and compress -> output
-    // or simply the weights V: hidden -> output
-    if (sizeCompress > 0) {
-      if (m_debugMode)
-        printf("TEXT Saving %dx%d hidden->compress weights...\n", sizeHidden, sizeCompress);
-      fprintf(fo, "\n\nWeights hidden->compress:\n");
-      SaveTextMatrix(fo, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-      if (m_debugMode)
-        printf("TEXT Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
-      fprintf(fo, "\n\nWeights compress->output:\n");
-      SaveTextMatrix(fo, sizeCompress, sizeOutput, m_weights.Compress2Output);
-    } else {
-      if (m_debugMode)
-        printf("TEXT Saving %dx%d hidden->output weights...\n", sizeHidden, sizeOutput);
-      fprintf(fo, "\n\nWeights hidden->output:\n");
-      SaveTextMatrix(fo, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-    }
-    fprintf(fo, "\nDirect connections:\n");
-    if (sizeDirectConnection > 0) {
-      // Save the direct connections
-      if (m_debugMode)
-        printf("TEXT Saving %ld n-gram connections...\n", sizeDirectConnection);
-      for (long long aa = 0; aa < sizeDirectConnection; aa++) {
-        fprintf(fo, "%.2f\n", m_weights.DirectNGram[aa]);
-      }
-    }
-    if (m_featureMatrixUsed) {
-      // Save the feature matrix
-      if (m_debugMode)
-        printf("TEXT Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
-      fprintf(fo, "\nFeature matrix:\n");
-      SaveTextMatrix(fo, sizeFeature, sizeVocabulary, m_featureMatrix);
+      printf("BINARY Saving %ld n-gram connections...\n", sizeDirectConnection);
+    for (long long aa = 0; aa < sizeDirectConnection; aa++) {
+      float fl = (float)(m_weights.DirectNGram[aa]);
+      fwrite(&fl, 4, 1, fo);
     }
   }
-  if (m_isRnnModelFileBinary) {
+  // Save the feature matrix
+  if (m_featureMatrixUsed) {
     if (m_debugMode)
-      printf("BINARY Saving %d hidden activations...\n", sizeHidden);
-    SaveBinaryVector(fo, sizeHidden, m_state.HiddenLayer);
-    // Save the weights U: input -> hidden (i.e., the word embeddings)
-    if (m_debugMode)
-      printf("BINARY Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
-    SaveBinaryMatrix(fo, sizeInput, sizeHidden, m_weights.Input2Hidden);
-    // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
-    if (m_debugMode)
-      printf("BINARY Saving %dx%d recurrent hidden->hidden weights...\n", sizeHidden, sizeHidden);
-    SaveBinaryMatrix(fo, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-    // Save the weights feature -> hidden
-    if (m_debugMode)
-      printf("BINARY Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
-    SaveBinaryMatrix(fo, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-    // Save the weights G: feature -> output
-    if (m_debugMode)
-      printf("BINARY Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
-    SaveBinaryMatrix(fo, sizeFeature, sizeOutput, m_weights.Features2Output);
-    // Save the weights hidden -> compress and compress -> output
-    // or simply the weights V: hidden -> output
-    if (sizeCompress > 0) {
-      if (m_debugMode)
-        printf("BINARY Saving %dx%d hidden->compress weights...\n", sizeCompress, sizeHidden);
-      SaveBinaryMatrix(fo, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-      if (m_debugMode)
-        printf("BINARY Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
-      SaveBinaryMatrix(fo, sizeCompress, sizeOutput, m_weights.Compress2Output);
-    } else {
-      if (m_debugMode)
-        printf("BINARY Saving %dx%d hidden->output weights...\n", sizeOutput, sizeHidden);
-      SaveBinaryMatrix(fo, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-    }
-    if (sizeDirectConnection > 0) {
-      // Save the direct connections
-      if (m_debugMode)
-        printf("BINARY Saving %ld n-gram connections...\n", sizeDirectConnection);
-      for (long long aa = 0; aa < sizeDirectConnection; aa++) {
-        float fl = (float)(m_weights.DirectNGram[aa]);
-        fwrite(&fl, 4, 1, fo);
-      }
-    }
-    // Save the feature matrix
-    if (m_featureMatrixUsed) {
-      if (m_debugMode)
-        printf("BINARY Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
-      SaveBinaryMatrix(fo, sizeFeature, sizeVocabulary, m_featureMatrix);
-    }
+      printf("BINARY Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
+    SaveBinaryMatrix(fo, sizeFeature, sizeVocabulary, m_featureMatrix);
   }
   fclose(fo);
   return true;

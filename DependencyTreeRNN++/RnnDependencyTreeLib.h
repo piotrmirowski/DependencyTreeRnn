@@ -27,20 +27,13 @@ class RnnTreeLM : public RnnLMTraining {
 public:
   
   /**
-   * Constructor for testing the model
+   * Constructor for training/testing the model
    */
-  RnnTreeLM(const std::string &filename, bool debugMode)
-  // We load the RNN from filename
-  : RnnLMTraining(filename, debugMode),
-  m_typeOfDepLabels(0) {
-  }
-  
-  /**
-   * Constructor for training the model
-   */
-  RnnTreeLM(const std::string &filename, bool debugMode, bool isBinary)
-  // We do not load the RNN, simply set its filename
-  : RnnLMTraining(filename, debugMode, isBinary),
+  RnnTreeLM(const std::string &filename, bool doLoadModel, bool debugMode)
+  // We load the RNN or not, depending on whether the model file is present
+  // otherwise simply set its filename
+  : RnnLMTraining(filename, doLoadModel, debugMode),
+  // Parameters set by default (can be overriden when loading the model)
   m_typeOfDepLabels(0), m_oov(1) {
   }
   
