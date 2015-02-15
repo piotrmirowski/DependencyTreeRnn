@@ -116,11 +116,12 @@ int RnnLMTraining::AddWordToVocabulary(const std::string& word)
 /// </s>, class 1 contains {the} or another, most frequent token,
 /// class 2 contains a few very frequent tokens, etc...
 /// </summary>
+bool OrderWordCounts(const VocabWord& a, const VocabWord& b) { return a.cn > b.cn; }
 void RnnLMTraining::SortVocabularyByFrequency()
 {
   std::sort(m_vocabularyStorage.begin(),
             m_vocabularyStorage.end(),
-            [](const VocabWord& a, const VocabWord& b) { return a.cn > b.cn; });
+            OrderWordCounts);
 }
 
 
@@ -129,12 +130,15 @@ void RnnLMTraining::SortVocabularyByFrequency()
 /// (used when the classes are provided by an external tools,
 /// e.g., based on maximum entropy features on word bigrams)
 /// </summary>
+bool OrderClassIndex(const VocabWord& a, const VocabWord& b) {
+  return a.classIndex < b.classIndex;
+}
 void RnnLMTraining::SortVocabularyByClass()
 {
   // Sort the words by class, in increasing class order
   std::sort(m_vocabularyStorage.begin(),
             m_vocabularyStorage.end(),
-            [](const VocabWord& a, const VocabWord& b) { return a.classIndex < b.classIndex; });
+            OrderClassIndex);
 }
 
 
