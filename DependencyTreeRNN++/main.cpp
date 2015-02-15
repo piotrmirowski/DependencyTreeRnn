@@ -328,10 +328,10 @@ int main(int argc, char *argv[])
       model.AddBookTestValid(fullname);
     }
     
+    // Set the filenames
+    model.SetTrainFile(trainFilename);
+    model.SetValidFile(validFilename);
     /*
-     // Set the filenames
-     model.SetTrainFile(trainFilename);
-     model.SetValidFile(validFilename);
      if (isFeatureTrainOrTestDataSet) {
      if (!isFeatureValidFileSet)
      {
@@ -393,6 +393,7 @@ int main(int argc, char *argv[])
       assert(model.GetNumDirectConnections() == sizeDirectNGramConnections);
       // One thing needs to be done: assign the words to classes!
       model.AssignWordsToClasses();
+      model.LoadRnnModelFromFile();
     }
 
     // When the model's training is restarting, these learning parameters
@@ -408,6 +409,7 @@ int main(int argc, char *argv[])
     }
     
     // Train the model
+    //model.SaveRnnModelToFile();
     model.TrainRnnModel();
   }
   

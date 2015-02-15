@@ -175,10 +175,6 @@ void RnnTreeLM::UpdateFeatureLabelVector(int label, RnnState &state) const {
 /// using the JSON trees of dependency parse
 /// </summary>
 bool RnnTreeLM::TrainRnnModel() {
-  // We do not use an external file with feature vectors;
-  // feature labels are provided in the parse tree itself
-  int sizeFeature = GetFeatureSize();
-  
   // Reset the log-likelihood of the last iteration to ginourmous value
   double lastValidLogProbability = -1E37;
   // Word counter, saved at the end of last training session
@@ -335,6 +331,9 @@ bool RnnTreeLM::TrainRnnModel() {
                 }
               }
               
+              // We do not use an external file with feature vectors;
+              // feature labels are provided in the parse tree itself
+              int sizeFeature = GetFeatureSize();
               for (int a = m_numBpttSteps+m_bpttBlockSize-1; a>0; a--) {
                 for (int b = 0; b < sizeFeature; b++) {
                   m_bpttVectors.FeatureLayer[a * sizeFeature+b] =
@@ -489,6 +488,7 @@ bool RnnTreeLM::TrainRnnModel() {
         m_doStartReducingLearningRate = true;
       } else {
         SaveRnnModelToFile();
+        LoadRnnModelFromFile();
         // Let's also save the word embeddings
         SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
         loopEpochs = false;
@@ -504,6 +504,7 @@ bool RnnTreeLM::TrainRnnModel() {
       validLogProbability = 0;
       m_iteration++;
       SaveRnnModelToFile();
+      LoadRnnModelFromFile();
       // Let's also save the word embeddings
       SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
       printf("Saved the model\n");

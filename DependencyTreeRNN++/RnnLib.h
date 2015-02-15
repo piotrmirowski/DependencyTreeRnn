@@ -187,14 +187,15 @@ public:
     
     /// <summary>
     /// Constructor
-    /// Comment by Francesco: "I suggest loading the NN with Mmap, please
-    /// work with Vitaly/Davide in order to do something sensible here.
-    /// It doesn't make very much sense to load that one piece at the time...
-    /// and it should really be just a matrix of values..."
     /// </summary>
     RnnLM(const std::string &filename,
           bool doLoadModel);
     
+    /// <summary>
+    /// Load the model.
+    /// </summary>
+    void LoadRnnModelFromFile();
+
     /// <summary>
     /// Assign words in vocabulary to classes (for hierarchical softmax).
     /// </summary>
@@ -341,21 +342,6 @@ protected:
             vec[k] = GenerateNormalRandomNumber();
         }
     }
-    
-    /// <summary>
-    /// Matrix-vector multiplication routine, somewhat accelerated using loop
-    /// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
-    /// where A is of size N x M, x is of length M and y is of length N.
-    /// The operation can done on a contiguous subset of indices
-    /// i in [idxYFrom, idxYTo[ of vector y
-    /// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
-    /// </summary>
-    void MultiplyMatrixXvector(std::vector<double> &vectorY,
-                               const std::vector<double> &vectorX,
-                               const std::vector<double> &matrixA,
-                               int widthMatrix,
-                               int idxYFrom,
-                               int idxYTo) const;
     
     /// <summary>
     /// Matrix-vector multiplication routine, somewhat accelerated using loop

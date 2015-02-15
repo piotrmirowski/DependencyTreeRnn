@@ -251,6 +251,21 @@ bool RnnLM::InitializeRnnModel(int sizeInput,
         bptt.WeightsFeature2Hidden.assign(sizeFeature * sizeHidden, 0);
     }
     
+    cout << "hidden: " << sizeHidden << " "
+    << m_state.HiddenLayer[100] << endl;
+    cout << "input2hidden: " << sizeInput << " " << sizeHidden << " "
+    << m_weights.Input2Hidden[100] << endl;
+    cout << "recurrent2hidden: " << sizeHidden << " " << sizeHidden << " "
+    << m_weights.Recurrent2Hidden[100] << endl;
+    cout << "hidden2output: " << sizeHidden << " " << sizeOutput << " "
+    << m_weights.Hidden2Output[100] << endl;
+    cout << "features2hidden: " << sizeFeature << " " << sizeHidden << " "
+    << m_weights.Features2Hidden[100] << endl;
+    cout << "features2output: " << sizeFeature << " " << sizeOutput << " "
+    << m_weights.Features2Output[100] << endl;
+    cout << "direct: " << sizeDirectConnection << " "
+    << m_weights.DirectNGram[100] << endl;
+
     return AssignWordsToClasses();
 }
 
@@ -451,224 +466,246 @@ m_areSentencesIndependent(true)
     // Load the RNN model?
     if (doLoadModel)
     {
-        printf("# Loading RNN model from %s...\n", m_rnnModelFile.c_str());
-        char buffer[8192];
-        
-        FILE *fi = fopen(m_rnnModelFile.c_str(), "rb");
-        if (fi == NULL)
-        {
-            throw new runtime_error("Did not find file " + m_rnnModelFile);
-        }
-        
-        GoToDelimiterInFile(':', fi);
-        int ver = m_rnnModelVersion;
-        fscanf(fi, "%d", &ver);
-        if ((ver > m_rnnModelVersion) || (ver <= 6))
-        {
-            throw new runtime_error("Unknown version of file " + m_rnnModelFile);
-        }
-        
-        GoToDelimiterInFile(':', fi);
-        int binValue = 0;
-        fscanf(fi, "%d", &binValue);
-        if (binValue == 0) {
-            throw new runtime_error("Old text models not supported");
-        }
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%s", buffer);
-        if (!m_isTrainFileSet)
-        {
-            m_trainFile = buffer;
-        }
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%s", buffer);
-        m_validationFile = buffer;
-        
-        double lastLogProbability;
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%lf", &lastLogProbability);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_iteration);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%ld", &m_currentPosTrainFile);
-        
-        double dummyLogProbability = 0.0;
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%lf", &dummyLogProbability);
-        
-        GoToDelimiterInFile(':', fi);
-        // temp kept for backwards compatibility in reading models
-        int anti_k;
-        fscanf(fi, "%d", &anti_k);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%ld", &m_numTrainWords);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeInput;
-        fscanf(fi, "%d", &sizeInput);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeFeature;
-        fscanf(fi, "%d", &sizeFeature);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_featureMatrixUsed);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%lf", &m_featureGammaCoeff);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeHidden;
-        fscanf(fi, "%d", &sizeHidden);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeCompress;
-        fscanf(fi, "%d", &sizeCompress);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeOutput;
-        fscanf(fi, "%d", &sizeOutput);
-        
-        long long sizeDirectConnection = 0;
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%lld", &sizeDirectConnection);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_directConnectionOrder);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_numBpttSteps);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_bpttBlockSize);
-        
-        GoToDelimiterInFile(':', fi);
-        int sizeVocabulary = 0;
-        fscanf(fi, "%d", &sizeVocabulary);
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &m_numOutputClasses);
-        
-        GoToDelimiterInFile(':', fi);
-        int dummyOldClasses = 0;
-        fscanf(fi, "%d", &dummyOldClasses);
-        
-        GoToDelimiterInFile(':', fi);
-        int booleanVal = 0;
-        fscanf(fi, "%d", &booleanVal);
-        m_usesClassFile = (booleanVal > 0);
-        
-        GoToDelimiterInFile(':', fi);
-        booleanVal = 0;
-        fscanf(fi, "%d", &booleanVal);
-        m_areSentencesIndependent = (booleanVal > 0);
-        
-        GoToDelimiterInFile(':', fi);
-        double val;
-        fscanf(fi, "%lf", &val);
-        m_initialLearningRate = val;
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%lf", &val);
-        m_learningRate = val;
-        
-        GoToDelimiterInFile(':', fi);
-        fscanf(fi, "%d", &booleanVal);
-        m_doStartReducingLearningRate = (booleanVal > 0);
-        
-        GoToDelimiterInFile(':', fi);
-        
-        // Read the vocabulary, stored in text format as following:
-        // index_number count word_token class_number
-        // There are tabs and spaces separating the 4 columns
-        m_vocabularyStorage.resize(sizeVocabulary);
-        for (int a = 0; a < sizeVocabulary; a++)
-        {
-            // Read the word index and the word count
-            int wordIndex;
-            int wordCount;
-            fscanf(fi, "%d%d", &wordIndex, &wordCount);
-            assert(wordIndex == a);
-            m_vocabularyStorage[a].cn = wordCount;
-            // Read the word token
-            char buffer[2048] = {0};
-            if (fscanf(fi, "%s", &buffer))
-                m_vocabularyStorage[a].word = buffer;
-            // Read the class index
-            int classIndex;
-            fscanf(fi, "%d", &classIndex);
-            
-            // Store in the vocabulary vector and in the two maps
-            m_vocabularyStorage[a].classIndex = classIndex;
-            m_mapWord2Index[m_vocabularyStorage[a].word] = wordIndex;
-            m_mapIndex2Word[wordIndex] = m_vocabularyStorage[a].word;
-            string word = m_vocabularyStorage[wordIndex].word;
-        }
-        
-        // Allocate the RNN here
-        int a = m_featureMatrixUsed;
-        m_featureMatrixUsed = 0;
-        // memory allocation here
-        InitializeRnnModel(sizeInput,
-                           sizeHidden,
-                           sizeCompress,
-                           sizeOutput,
-                           sizeFeature,
-                           sizeDirectConnection,
-                           m_state,
-                           m_weights,
-                           m_bpttVectors);
-        m_featureMatrixUsed = a;
+        LoadRnnModelFromFile();
+    }
+}
 
-        // Read the activations on the hidden layer
-        fgetc(fi);
-        ReadBinaryVector(fi, sizeHidden, m_state.HiddenLayer);
+
+void RnnLM::LoadRnnModelFromFile()
+{
+    printf("# Loading RNN model from %s...\n", m_rnnModelFile.c_str());
+    char buffer[8192];
+    
+    FILE *fi = fopen(m_rnnModelFile.c_str(), "rb");
+    if (fi == NULL)
+    {
+        throw new runtime_error("Did not find file " + m_rnnModelFile);
+    }
+    
+    GoToDelimiterInFile(':', fi);
+    int ver = m_rnnModelVersion;
+    fscanf(fi, "%d", &ver);
+    if ((ver > m_rnnModelVersion) || (ver <= 6))
+    {
+        throw new runtime_error("Unknown version of file " + m_rnnModelFile);
+    }
+    
+    GoToDelimiterInFile(':', fi);
+    int binValue = 0;
+    fscanf(fi, "%d", &binValue);
+    if (binValue == 0) {
+        throw new runtime_error("Old text models not supported");
+    }
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%s", buffer);
+    if (!m_isTrainFileSet)
+    {
+        m_trainFile = buffer;
+    }
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%s", buffer);
+    m_validationFile = buffer;
+    
+    double lastLogProbability;
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%lf", &lastLogProbability);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_iteration);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%ld", &m_currentPosTrainFile);
+    
+    double dummyLogProbability = 0.0;
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%lf", &dummyLogProbability);
+    
+    GoToDelimiterInFile(':', fi);
+    // temp kept for backwards compatibility in reading models
+    int anti_k;
+    fscanf(fi, "%d", &anti_k);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%ld", &m_numTrainWords);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeInput;
+    fscanf(fi, "%d", &sizeInput);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeFeature;
+    fscanf(fi, "%d", &sizeFeature);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_featureMatrixUsed);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%lf", &m_featureGammaCoeff);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeHidden;
+    fscanf(fi, "%d", &sizeHidden);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeCompress;
+    fscanf(fi, "%d", &sizeCompress);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeOutput;
+    fscanf(fi, "%d", &sizeOutput);
+    
+    long long sizeDirectConnection = 0;
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%lld", &sizeDirectConnection);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_directConnectionOrder);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_numBpttSteps);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_bpttBlockSize);
+    
+    GoToDelimiterInFile(':', fi);
+    int sizeVocabulary = 0;
+    fscanf(fi, "%d", &sizeVocabulary);
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &m_numOutputClasses);
+    
+    GoToDelimiterInFile(':', fi);
+    int dummyOldClasses = 0;
+    fscanf(fi, "%d", &dummyOldClasses);
+    
+    GoToDelimiterInFile(':', fi);
+    int booleanVal = 0;
+    fscanf(fi, "%d", &booleanVal);
+    m_usesClassFile = (booleanVal > 0);
+    
+    GoToDelimiterInFile(':', fi);
+    booleanVal = 0;
+    fscanf(fi, "%d", &booleanVal);
+    m_areSentencesIndependent = (booleanVal > 0);
+    
+    GoToDelimiterInFile(':', fi);
+    double val;
+    fscanf(fi, "%lf", &val);
+    m_initialLearningRate = val;
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%lf", &val);
+    m_learningRate = val;
+    
+    GoToDelimiterInFile(':', fi);
+    fscanf(fi, "%d", &booleanVal);
+    m_doStartReducingLearningRate = (booleanVal > 0);
+    
+    GoToDelimiterInFile(':', fi);
+    
+    // Read the vocabulary, stored in text format as following:
+    // index_number count word_token class_number
+    // There are tabs and spaces separating the 4 columns
+    m_vocabularyStorage.resize(sizeVocabulary);
+    for (int a = 0; a < sizeVocabulary; a++)
+    {
+        // Read the word index and the word count
+        int wordIndex;
+        int wordCount;
+        fscanf(fi, "%d%d", &wordIndex, &wordCount);
+        assert(wordIndex == a);
+        m_vocabularyStorage[a].cn = wordCount;
+        m_vocabularyStorage[a].prob = 0;
+        // Read the word token
+        char buffer[2048] = {0};
+        if (fscanf(fi, "%s", &buffer))
+            m_vocabularyStorage[a].word = buffer;
+        string word = m_vocabularyStorage[a].word;
+        // Read the class index
+        int classIndex;
+        fscanf(fi, "%d", &classIndex);
         
-        // Read the weights of input -> hidden connections
-        ReadBinaryMatrix(fi, sizeInput, sizeHidden, m_weights.Input2Hidden);
-        // Read the weights of recurrent hidden -> hidden connections
-        ReadBinaryMatrix(fi, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-        // Read the weights of feature -> hidden connections
-        ReadBinaryMatrix(fi, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-        // Read the weights of feature -> output connections
-        ReadBinaryMatrix(fi, sizeFeature, sizeOutput, m_weights.Features2Output);
-        if (sizeCompress == 0)
-        {
-            // Read the weights of hidden -> output connections
-            ReadBinaryMatrix(fi, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-        }
-        else
-        {
-            // Read the weights of hidden -> compression connections
-            ReadBinaryMatrix(fi, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-            // Read the weights of compression -> output connections
-            ReadBinaryMatrix(fi, sizeCompress, sizeOutput, m_weights.Compress2Output);
-        }
-        if (sizeDirectConnection > 0)
-        {
+        // Store in the vocabulary vector and in the two maps
+        m_vocabularyStorage[a].classIndex = classIndex;
+        m_mapWord2Index[word] = wordIndex;
+        m_mapIndex2Word[wordIndex] = word;
+    }
+    
+    // Allocate the RNN here
+    int a = m_featureMatrixUsed;
+    m_featureMatrixUsed = 0;
+    // memory allocation here
+    InitializeRnnModel(sizeInput,
+                       sizeHidden,
+                       sizeCompress,
+                       sizeOutput,
+                       sizeFeature,
+                       sizeDirectConnection,
+                       m_state,
+                       m_weights,
+                       m_bpttVectors);
+    m_featureMatrixUsed = a;
+    
+    // Read the activations on the hidden layer
+    fgetc(fi);
+    ReadBinaryVector(fi, sizeHidden, m_state.HiddenLayer);
+    
+    // Read the weights of input -> hidden connections
+    ReadBinaryMatrix(fi, sizeInput, sizeHidden, m_weights.Input2Hidden);
+    // Read the weights of recurrent hidden -> hidden connections
+    ReadBinaryMatrix(fi, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
+    // Read the weights of feature -> hidden connections
+    ReadBinaryMatrix(fi, sizeFeature, sizeHidden, m_weights.Features2Hidden);
+    // Read the weights of feature -> output connections
+    ReadBinaryMatrix(fi, sizeFeature, sizeOutput, m_weights.Features2Output);
+    if (sizeCompress == 0)
+    {
+        // Read the weights of hidden -> output connections
+        ReadBinaryMatrix(fi, sizeHidden, sizeOutput, m_weights.Hidden2Output);
+    }
+    else
+    {
+        // Read the weights of hidden -> compression connections
+        ReadBinaryMatrix(fi, sizeHidden, sizeCompress, m_weights.Hidden2Output);
+        // Read the weights of compression -> output connections
+        ReadBinaryMatrix(fi, sizeCompress, sizeOutput, m_weights.Compress2Output);
+    }
+    if (sizeDirectConnection > 0)
+    {
 #ifdef USE_HASHTABLES
 #else
-            // Read the direct connections
-            ReadBinaryVector(fi, sizeDirectConnection, m_weights.DirectNGram);
+        // Read the direct connections
+        ReadBinaryVector(fi, sizeDirectConnection, m_weights.DirectNGram);
 #endif
-        }
-        // Read the feature matrix
-        if (m_featureMatrixUsed)
-        {
-            ReadBinaryMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
-            m_featureMatrix.resize(GetVocabularySize() * sizeFeature);
-        }
-        fclose(fi);
-        
-        // Reset the state of the RNN
-        ResetHiddenRnnStateAndWordHistory(m_state, m_bpttVectors);
-        m_isModelLoaded = true;
     }
+    // Read the feature matrix
+    if (m_featureMatrixUsed)
+    {
+        ReadBinaryMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
+        m_featureMatrix.resize(GetVocabularySize() * sizeFeature);
+    }
+    fclose(fi);
+    
+    cout << "hidden: " << sizeHidden << " "
+    << m_state.HiddenLayer[100] << endl;
+    cout << "input2hidden: " << sizeInput << " " << sizeHidden << " "
+    << m_weights.Input2Hidden[100] << endl;
+    cout << "recurrent2hidden: " << sizeHidden << " " << sizeHidden << " "
+    << m_weights.Recurrent2Hidden[100] << endl;
+    cout << "hidden2output: " << sizeHidden << " " << sizeOutput << " "
+    << m_weights.Hidden2Output[100] << endl;
+    cout << "features2hidden: " << sizeFeature << " " << sizeHidden << " "
+    << m_weights.Features2Hidden[100] << endl;
+    cout << "features2output: " << sizeFeature << " " << sizeOutput << " "
+    << m_weights.Features2Output[100] << endl;
+    cout << "direct: " << sizeDirectConnection << " "
+    << m_weights.DirectNGram[100] << endl;
+    
+    // Reset the state of the RNN
+    ResetHiddenRnnStateAndWordHistory(m_state, m_bpttVectors);
+    m_isModelLoaded = true;
 }
 
 
@@ -1169,369 +1206,6 @@ void RnnLM::MultiplyMatrixXvectorBlas(vector<double> &vectorY,
                 1.0, vecY, 1);
 }
 
-/*
-/// <summary>
-/// Forward-propagate the RNN through one full step, starting from
-/// the lastWord w(t) and the previous hidden state activation s(t-1),
-/// as well as optional feature vector f(t)
-/// and direct n-gram connections to the word history,
-/// computing the new hidden state activation s(t)
-/// s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// Updates the RnnState object (but not the weights).
-/// </summary>
-void RnnLM::ForwardPropagateOneStep(int lastWord,
-                                    int word,
-                                    RnnState &state) const
-{
-    // Nothing to do when the word is OOV
-    if (word == -1)
-    {
-        return;
-    }
-    
-    // The previous word (lastWord) is the input w(t) to the RN
-    if (lastWord != -1)
-    {
-        state.InputLayer[lastWord] = 1;
-    }
-    
-    // Erase activations of the hidden s(t) and hidden compression c(t) layers
-    int sizeHidden = GetHiddenSize();
-    int sizeCompress = GetCompressSize();
-    state.HiddenLayer.assign(sizeHidden, 0.0);
-    state.CompressLayer.assign(sizeCompress, 0.0);
-    
-    // Forward-propagate s(t-1) -> s(t)
-    // using recurrent connection,
-    // from previous value s(t-1) of the hidden layer at time t-1
-    // to the current value s(t) of the hidden layer at time t
-    // Operation: s(t) <- W * s(t-1)
-    // Note that s(t-1) was previously copied to the recurrent input layer.
-    MultiplyMatrixXvector(state.HiddenLayer,
-                          state.RecurrentLayer,
-                          m_weights.Recurrent2Hidden,
-                          sizeHidden,
-                          0,
-                          sizeHidden);
-    
-    // Forward-propagate w(t) -> s(t)
-    // from the one-hot word representation w(t) at time t
-    // to the hidden layer s(t) at time t
-    // Operation: s(t) <- s(t) + U * w(t)
-    // Note that we add to s(t) which is already non-zero.
-    int sizeInput = GetInputSize();
-    if (lastWord != -1)
-    {
-        for (int b = 0; b < sizeHidden; b++)
-        {
-            state.HiddenLayer[b] +=
-                state.InputLayer[lastWord] * m_weights.Input2Hidden[lastWord + b * sizeInput];
-        }
-    }
-    
-    int sizeFeature = GetFeatureSize();
-    if (sizeFeature > 0)
-    {
-        // Forward-propagate f(t) -> s(t)
-        // from the feature vector f(t) at time t
-        // to the hidden layer s(t) at time t
-        // Operation: s(t) <- s(t) + F * f(t)
-        // Note that we add to s(t) which is already non-zero.
-        MultiplyMatrixXvector(state.HiddenLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Hidden,
-                              sizeFeature,
-                              0,
-                              sizeHidden);
-    }
-    
-    // Apply the sigmoid transfer function to the hidden values s(t)
-    // At this point, we have computed: z = W * s(t-1) + U * w(t) + F * f(t)
-    // Operation: 1 / (1 + exp(-z))
-    // We obtain: s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-    for (int a = 0; a < sizeHidden; a++)
-    {
-        state.HiddenLayer[a] = LogisticSigmoid(state.HiddenLayer[a]);
-    }
-    
-    if (sizeCompress > 0)
-    {
-        // Forward-propagate s(t) -> c(t)
-        // from the hidden layer s(t) at time t
-        // to the second (compression) hidden layer c(t) at time t
-        // Operation: C * s(t)
-        // TODO: check where CompressLayer was reset (should be)
-        MultiplyMatrixXvector(state.CompressLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              0,
-                              sizeCompress);
-        // Apply the sigmoid transfer function to the hidden values c(t)
-        // Operation: 1 / (1 + exp(-z))
-        // We obtain: c(t) = sigmoid(C * s(t))
-        for (int a = 0; a < sizeCompress; a++)
-        {
-            state.CompressLayer[a] = LogisticSigmoid(state.CompressLayer[a]);
-        }
-    }
-    
-    // Reset the output layer (segment that encodes the class probabilities)
-    int sizeOutput = GetOutputSize();
-    int sizeVocabulary = GetVocabularySize();
-    for (int b = sizeVocabulary; b < sizeOutput; b++)
-    {
-        state.OutputLayer[b] = 0;
-    }
-    
-    if (sizeCompress > 0)
-    {
-        // Forward-propagate c(t) -> y(t)
-        // from the second hidden (compression) layer c(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- V * c(t)
-        // Note that this operation is done only on the class outputs,
-        // not on the word vocabulary per class outputs
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.CompressLayer,
-                              m_weights.Compress2Output,
-                              sizeCompress,
-                              sizeVocabulary,
-                              sizeOutput);
-    }
-    else
-    {
-        // Forward-propagate s(t) -> y(t)
-        // from the hidden layer s(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- V * s(t)
-        // Note that this operation is done only on the class outputs,
-        // not on the word vocabulary per class outputs
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              sizeVocabulary,
-                              sizeOutput);
-    }
-    
-    if (sizeFeature > 0)
-    {
-        // Forward-propagate f(t) -> y(t)
-        // from the feature layer f(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- y(t) + G * f(t)
-        // Note that this operation is done only on the class outputs,
-        // not on the word vocabulary per class outputs
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Output,
-                              sizeFeature,
-                              sizeVocabulary,
-                              sizeOutput);
-    }
-    
-    // Apply direct connections to classes
-    // TODO: this is a horrible mess, but the problem is that models
-    // trained with this weird hashing function would be incompatible
-    // with models trained with a proper hash table (unordered_map),
-    // possibly sorted by the n-gram frequency.
-    // It would be nice to make that change (and perhaps retrain old models).
-    int sizeDirectConnection = GetNumDirectConnections();
-    if (sizeDirectConnection > 0)
-    {
-        // this will hold pointers to m_weightDataMain.weightsDirect
-        // that contains hash parameters
-        unsigned long long hash[c_maxNGramOrder];
-        for (int a = 0; a < m_directConnectionOrder; a++) {
-            hash[a] = 0;
-        }
-        for (int a = 0; a < m_directConnectionOrder; a++) {
-            int b = 0;
-            if ((a > 0) && (state.WordHistory[a-1] == -1)) {
-                // if OOV was in history, do not use this N-gram feature and higher orders
-                break;
-            }
-            hash[a] = c_Primes[0] * c_Primes[1];
-            for (b = 1; b <= a; b++) {
-                hash[a] += c_Primes[(a * c_Primes[b] + b) % c_PrimesSize] * (unsigned long long)(state.WordHistory[b-1] + 1);
-                // update hash value based on words from the history
-            }
-            // make sure that starting hash index is in the first half
-            // of m_weightDataMain.weightsDirect (second part is reserved for history->words features)
-            hash[a] = hash[a] % (sizeDirectConnection/2);
-        }
-        for (int a = sizeVocabulary; a < sizeOutput; a++) {
-            for (int b = 0; b < m_directConnectionOrder; b++) {
-                if (hash[b]) {
-                    // apply current parameter and move to the next one
-                    state.OutputLayer[a] += m_weights.DirectNGram[hash[b]];
-                    hash[b]++;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    
-    // Apply the softmax transfer function to the hidden values s(t)
-    // At this point, we have computed: x = V * s(t) + G * f(t)
-    // Operation: exp(x_v) / sum_v exp(x_v)
-    // We obtain: y(t) = softmax(V * s(t) + G * f(t) + n-gram features)
-    // Note that this softmax is computed here only for classes, not words
-    double sum = 0.0;
-    for (int a = sizeVocabulary; a < sizeOutput; a++)
-    {
-        double val = SafeExponentiate(state.OutputLayer[a]);
-        sum += val;
-        state.OutputLayer[a] = val;
-    }
-    for (int a = sizeVocabulary; a < sizeOutput; a++)
-    {
-        state.OutputLayer[a] /= sum;
-    }
-    
-    // What is the target class of the desired word?
-    int targetClass = m_vocabularyStorage[word].classIndex;
-    
-    // Now, we need to compute the softmax for the words in that target class
-    // (this will update the state)
-    ComputeRnnOutputsForGivenClass(targetClass, state);
-}
-
-
-/// <summary>
-/// Given a target word class, compute the conditional distribution
-/// of all words within that class. The hidden state activation s(t)
-/// is assumed to be already computed. Essentially, computes:
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// but for a specific targetClass.
-/// Updates the RnnState object (but not the weights).
-/// </summary>
-void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
-                                            RnnState &state) const
-{
-    // How many words in that target class?
-    const auto targetClassCount = static_cast<int>(m_classWords[targetClass].size());
-    // At which index in output layer y(t) position do the words
-    // of the target class start?
-    const auto minIndexWithinClass = m_classWords[targetClass][0];
-    const auto maxIndexWithinClass = minIndexWithinClass + targetClassCount;
-    // The indexes are in range [minIndexWithinClass, maxIndexWithinClass[
-    // THIS WILL WORK ONLY IF CLASSES ARE CONTINUALLY DEFINED IN VOCABULARY
-    // (i.e., class 10 = words 11 12 13; not 11 12 16)
-    
-    // Reset the outputs in y(t) for that class
-    for (int c = 0; c < targetClassCount; c++)
-    {
-        state.OutputLayer[m_classWords[targetClass][c]] = 0;
-    }
-    
-    int sizeCompress = GetCompressSize();
-    int sizeHidden = GetHiddenSize();
-    if (sizeCompress > 0)
-    {
-        // Forward-propagate c(t) -> y(t)
-        // from the second hidden (compression) layer c(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- V * c(t)
-        // Note that this operation is done only on the words
-        // in the class-specific vocabulary
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.CompressLayer,
-                              m_weights.Compress2Output,
-                              sizeCompress,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-    }
-    else
-    {
-        // Forward-propagate s(t) -> y(t)
-        // from the hidden layer s(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- V * s(t)
-        // Note that this operation is done only on the words
-        // in the class-specific vocabulary
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-    }
-    
-    int sizeFeature = GetFeatureSize();
-    if (sizeFeature > 0)
-    {
-        // Forward-propagate f(t) -> y(t)
-        // from the feature layer f(t) at time t
-        // to the output layer y(t) at time t
-        // Operation: y(t) <- y(t) + G * f(t)
-        // Note that this operation is done only on the words
-        // in the class-specific vocabulary
-        MultiplyMatrixXvector(state.OutputLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Output,
-                              sizeFeature,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-    }
-    
-    // Apply direct connections to words
-    // TODO: clean-up that mess...
-    int sizeDirectConnection = GetNumDirectConnections();
-    if (sizeDirectConnection > 0) {
-        unsigned long long hash[c_maxNGramOrder];
-        for (int a = 0; a < m_directConnectionOrder; a++) {
-            hash[a] = 0;
-        }
-        for (int a = 0; a < m_directConnectionOrder; a++) {
-            int b = 0;
-            if ((a > 0) && (state.WordHistory[a-1] == -1)) {
-                break;
-            }
-            hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(targetClass+1);
-            for (b = 1; b <= a; b++) {
-                hash[a] += c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(state.WordHistory[b-1]+1);
-            }
-            hash[a] = (hash[a] % (sizeDirectConnection/2)) + (sizeDirectConnection)/2;
-        }
-        for (int c = 0; c < targetClassCount; c++) {
-            int a = m_classWords[targetClass][c];
-            for (int b = 0; b < m_directConnectionOrder; b++) if (hash[b]) {
-                state.OutputLayer[a] += m_weights.DirectNGram[hash[b]];
-                hash[b]++;
-                hash[b] = hash[b]%sizeDirectConnection;
-            } else {
-                break;
-            }
-        }
-    }
-    
-    // Apply the softmax transfer function to the hidden values s(t)
-    // At this point, we have computed: x = V * s(t) + G * f(t)
-    // Operation: exp(x_v) / sum_v exp(x_v)
-    // We obtain: y(t) = softmax(V * s(t) + G * f(t) + n-gram features)
-    // Note that this operation is done only on the words
-    // in the class-specific vocabulary
-    double sum = 0;
-    for (int c = 0; c < targetClassCount; c++)
-    {
-        int wordIndex = m_classWords[targetClass][c];
-        double val = SafeExponentiate(state.OutputLayer[wordIndex]);
-        sum += val;
-        state.OutputLayer[wordIndex] = val;
-    }
-    for (int c = 0; c < targetClassCount; c++)
-    {
-        int wordIndex = m_classWords[targetClass][c];
-        state.OutputLayer[wordIndex] /= sum;
-    }
-}
-*/
 
 /// <summary>
 /// Copies the hidden layer activation s(t) to the recurrent connections.
@@ -1609,63 +1283,5 @@ void RnnLM::UpdateFeatureVectorUsingTopicModel(int word,
         state.FeatureLayer[a] =
         state.FeatureLayer[a] * m_featureGammaCoeff
         + m_featureMatrix[a * sizeVocabulary + word] * oneMinusGamma;
-    }
-}
-
-
-/// <summary>
-/// Matrix-vector multiplication routine, somewhat accelerated using loop
-/// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
-/// where A is of size N x M, x is of length M and y is of length N.
-/// The operation can done on a contiguous subset of indices
-/// i in [idxYFrom, idxYTo[ of vector y
-/// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
-/// </summary>
-void RnnLM::MultiplyMatrixXvector(vector<double> &vectorY,
-                                  const vector<double> &vectorX,
-                                  const vector<double> &matrixA,
-                                  int widthMatrix,
-                                  int idxYFrom,
-                                  int idxYTo) const
-{
-    int b;
-    for (b = 0; b < (idxYTo - idxYFrom) / 8; b++)
-    {
-        double val1 = 0;
-        double val2 = 0;
-        double val3 = 0;
-        double val4 = 0;
-        double val5 = 0;
-        double val6 = 0;
-        double val7 = 0;
-        double val8 = 0;
-        for (int a = 0; a < widthMatrix; a++)
-        {
-            double vectorXa = vectorX[a];
-            val1 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 0) * widthMatrix];
-            val2 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 1) * widthMatrix];
-            val3 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 2) * widthMatrix];
-            val4 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 3) * widthMatrix];
-            val5 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 4) * widthMatrix];
-            val6 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 5) * widthMatrix];
-            val7 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 6) * widthMatrix];
-            val8 += vectorXa * matrixA[a + (b * 8 + idxYFrom + 7) * widthMatrix];
-        }
-        vectorY[b * 8 + idxYFrom + 0] += val1;
-        vectorY[b * 8 + idxYFrom + 1] += val2;
-        vectorY[b * 8 + idxYFrom + 2] += val3;
-        vectorY[b * 8 + idxYFrom + 3] += val4;
-        vectorY[b * 8 + idxYFrom + 4] += val5;
-        vectorY[b * 8 + idxYFrom + 5] += val6;
-        vectorY[b * 8 + idxYFrom + 6] += val7;
-        vectorY[b * 8 + idxYFrom + 7] += val8;
-    }
-    // An "elegant" way to do modulo 8...
-    for (b = b * 8; b < idxYTo - idxYFrom; b++)
-    {
-        for (int a = 0; a < widthMatrix; a++)
-        {
-            vectorY[b + idxYFrom] += vectorX[a] * matrixA[a + (b + idxYFrom) * widthMatrix];
-        }
     }
 }

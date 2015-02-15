@@ -335,42 +335,42 @@ bool RnnLMTraining::SaveRnnModelToFile()
   long sizeDirectConnection = GetNumDirectConnections();
   
   if (m_debugMode)
-    printf("BINARY Saving %d hidden activations...\n", sizeHidden);
+    printf("Saving %d hidden activations...\n", sizeHidden);
   SaveBinaryVector(fo, sizeHidden, m_state.HiddenLayer);
   // Save the weights U: input -> hidden (i.e., the word embeddings)
   if (m_debugMode)
-    printf("BINARY Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
+    printf("Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
   SaveBinaryMatrix(fo, sizeInput, sizeHidden, m_weights.Input2Hidden);
   // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
   if (m_debugMode)
-    printf("BINARY Saving %dx%d recurrent hidden->hidden weights...\n", sizeHidden, sizeHidden);
+    printf("Saving %dx%d recurrent hidden->hidden weights...\n", sizeHidden, sizeHidden);
   SaveBinaryMatrix(fo, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
   // Save the weights feature -> hidden
   if (m_debugMode)
-    printf("BINARY Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
+    printf("Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
   SaveBinaryMatrix(fo, sizeFeature, sizeHidden, m_weights.Features2Hidden);
   // Save the weights G: feature -> output
   if (m_debugMode)
-    printf("BINARY Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
+    printf("Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
   SaveBinaryMatrix(fo, sizeFeature, sizeOutput, m_weights.Features2Output);
   // Save the weights hidden -> compress and compress -> output
   // or simply the weights V: hidden -> output
   if (sizeCompress > 0) {
     if (m_debugMode)
-      printf("BINARY Saving %dx%d hidden->compress weights...\n", sizeCompress, sizeHidden);
+      printf("Saving %dx%d hidden->compress weights...\n", sizeCompress, sizeHidden);
     SaveBinaryMatrix(fo, sizeHidden, sizeCompress, m_weights.Hidden2Output);
     if (m_debugMode)
-      printf("BINARY Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
+      printf("Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
     SaveBinaryMatrix(fo, sizeCompress, sizeOutput, m_weights.Compress2Output);
   } else {
     if (m_debugMode)
-      printf("BINARY Saving %dx%d hidden->output weights...\n", sizeOutput, sizeHidden);
+      printf("Saving %dx%d hidden->output weights...\n", sizeOutput, sizeHidden);
     SaveBinaryMatrix(fo, sizeHidden, sizeOutput, m_weights.Hidden2Output);
   }
   if (sizeDirectConnection > 0) {
     // Save the direct connections
     if (m_debugMode)
-      printf("BINARY Saving %ld n-gram connections...\n", sizeDirectConnection);
+      printf("Saving %ld n-gram connections...\n", sizeDirectConnection);
 #ifdef USE_HASHTABLES
 #else
     for (long long aa = 0; aa < sizeDirectConnection; aa++) {
@@ -382,10 +382,26 @@ bool RnnLMTraining::SaveRnnModelToFile()
   // Save the feature matrix
   if (m_featureMatrixUsed) {
     if (m_debugMode)
-      printf("BINARY Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
+      printf("Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
     SaveBinaryMatrix(fo, sizeFeature, sizeVocabulary, m_featureMatrix);
   }
   fclose(fo);
+
+  cout << "hidden: " << sizeHidden << " "
+  << m_state.HiddenLayer[100] << endl;
+  cout << "input2hidden: " << sizeInput << " " << sizeHidden << " "
+  << m_weights.Input2Hidden[100] << endl;
+  cout << "recurrent2hidden: " << sizeHidden << " " << sizeHidden << " "
+  << m_weights.Recurrent2Hidden[100] << endl;
+  cout << "hidden2output: " << sizeHidden << " " << sizeOutput << " "
+  << m_weights.Hidden2Output[100] << endl;
+  cout << "features2hidden: " << sizeFeature << " " << sizeHidden << " "
+  << m_weights.Features2Hidden[100] << endl;
+  cout << "features2output: " << sizeFeature << " " << sizeOutput << " "
+  << m_weights.Features2Output[100] << endl;
+  cout << "direct: " << sizeDirectConnection << " "
+  << m_weights.DirectNGram[100] << endl;
+  
   return true;
 }
 
