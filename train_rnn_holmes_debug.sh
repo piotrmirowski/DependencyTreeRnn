@@ -20,7 +20,7 @@ PATH_MODELS="./models"
 LIST_VALID=$PATH_DATA"/valid.txt"
 LIST_TRAIN=$PATH_DATA"/train_small.txt"
 FILE_SENTENCE_LABELS=$PATH_DATA"/valid.labels"
-FILE_MODEL=$PATH_MODELS"/GutenbergHolmes_h"$DEP_LABELS
+FILE_MODEL=$PATH_MODELS"/GutenbergHolmes_p"$DEP_LABELS
 FILE_MODEL=$FILE_MODEL"_mw"$MIN_WORD_OCCURRENCE
 FILE_MODEL=$FILE_MODEL"_h"$RNN_HIDDENS
 FILE_MODEL=$FILE_MODEL"_c"$RNN_CLASSES
@@ -44,4 +44,4 @@ RnnDependencyTree \
   -direct-order $NGRAM_ORDER \
   -bptt $BPTT_ORDER \
   -class $RNN_CLASSES \
-  -debug false
+  -debug true
