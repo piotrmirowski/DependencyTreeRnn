@@ -90,6 +90,69 @@ const unsigned int c_Primes[] = {108641969, 116049371, 125925907, 133333309, 145
 const unsigned int c_PrimesSize = sizeof(c_Primes)/sizeof(c_Primes[0]);
 
 
+struct WordTripleKey
+{
+    int w1;
+    int w2;
+    int w3;
+    
+    WordTripleKey(int v1, int v2, int v3)
+    : w1(v1), w2(v2), w3(v3) { }
+
+    bool isValid() { return (w1 != -1) && (w2 != -1) && (w3 != -1); }
+
+    bool operator==(const WordTripleKey &key) const
+    {
+        return ((w1 == key.w1) && (w2 == key.w2) && (w3 == key.w3));
+    }
+};
+
+
+template <>
+struct std::hash<WordTripleKey>
+{
+    unsigned long long operator()(const WordTripleKey& k) const
+    {
+        unsigned long long hash = c_Primes[0] * c_Primes[1] * k.w1;
+        hash += c_Primes[(2*c_Primes[1]+1)%c_PrimesSize] * k.w2;
+        hash += c_Primes[(2*c_Primes[2]+2)%c_PrimesSize] * k.w3;
+        return hash;
+    }
+};
+
+
+struct WordPairKey
+{
+    int w1;
+    int w2;
+    
+    WordPairKey(int v1, int v2)
+    : w1(v1), w2(v2) { }
+    
+    bool isValid() { return (w1 != -1) && (w2 != -1); }
+
+    bool operator==(const WordPairKey &key) const
+    {
+        return ((w1 == key.w1) && (w2 == key.w2));
+    }
+};
+
+
+template <>
+struct std::hash<WordPairKey>
+{
+    unsigned long long operator()(const WordPairKey& k) const
+    {
+        unsigned long long hash = c_Primes[0] * c_Primes[1] * k.w1;
+        hash += c_Primes[(2*c_Primes[1]+1)%c_PrimesSize] * k.w2;
+        return hash;
+    }
+};
+
+
+//#define USE_HASHTABLES
+
+
 struct RnnWeights
 {
     // Weights between input and hidden layer
@@ -105,7 +168,13 @@ struct RnnWeights
     // Optional weights between compression and output layer
     std::vector<double> Compress2Output;
     // Direct parameters between input and output layer (similar to Maximum Entropy model parameters)
+#ifdef USE_HASHTABLES
+    std::unordered_map<WordTripleKey, float> DirectTriGram;
+    std::unordered_map<WordPairKey, float> DirectBiGram;
+    std::unordered_map<int, float> DirectUniGram;
+#else
     std::vector<double> DirectNGram;
+#endif
 };
 
 
@@ -192,7 +261,11 @@ public:
     /// <returns>Integer number</returns>
     int GetNumDirectConnections() const
     {
+#ifdef USE_HASHTABLES
+        return 1;
+#else
         return static_cast<int>(m_weights.DirectNGram.size());
+#endif
     }
     
     /// <summary>
@@ -284,6 +357,21 @@ protected:
                                int idxYFrom,
                                int idxYTo) const;
     
+    /// <summary>
+    /// Matrix-vector multiplication routine, somewhat accelerated using loop
+    /// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
+    /// where A is of size N x M, x is of length M and y is of length N.
+    /// The operation can done on a contiguous subset of indices
+    /// i in [idxYFrom, idxYTo[ of vector y
+    /// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
+    /// </summary>
+    void MultiplyMatrixXvectorBlas(std::vector<double> &vectorY,
+                                   std::vector<double> &vectorX,
+                                   std::vector<double> &matrixA,
+                                   int widthMatrix,
+                                   int idxYFrom,
+                                   int idxYTo) const;
+    
 public:
     
     /// <summary>
@@ -343,15 +431,9 @@ public:
     /// y(t) = softmax_class(x) * softmax_word_given_class(x)
     /// Updates the RnnState object (but not the weights).
     /// </summary>
-    virtual void ForwardPropagateOneStep(int lastWord,
-                                         int word,
-                                         RnnState &state) const;
-    
-    /// <summary>
-    /// Copies the hidden layer activation s(t) to the recurrent connections.
-    /// That copy will become s(t-1) at the next call of ForwardPropagateOneStep
-    /// </summary>
-    void ForwardPropagateRecurrentConnectionOnly(RnnState &state) const;
+    void ForwardPropagateOneStep(int lastWord,
+                                 int word,
+                                 RnnState &state);
     
     /// <summary>
     /// Given a target word class, compute the conditional distribution
@@ -362,8 +444,14 @@ public:
     /// but for a specific targetClass.
     /// Updates the RnnState object (but not the weights).
     /// </summary>
-    virtual void ComputeRnnOutputsForGivenClass(const int targetClass,
-                                                RnnState &state) const;
+    void ComputeRnnOutputsForGivenClass(const int targetClass,
+                                        RnnState &state);
+    
+    /// <summary>
+    /// Copies the hidden layer activation s(t) to the recurrent connections.
+    /// That copy will become s(t-1) at the next call of ForwardPropagateOneStep
+    /// </summary>
+    void ForwardPropagateRecurrentConnectionOnly(RnnState &state) const;
     
     /// <summary>
     /// Shift the word history by one and update last word.

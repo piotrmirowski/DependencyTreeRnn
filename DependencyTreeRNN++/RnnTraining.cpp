@@ -371,10 +371,13 @@ bool RnnLMTraining::SaveRnnModelToFile()
     // Save the direct connections
     if (m_debugMode)
       printf("BINARY Saving %ld n-gram connections...\n", sizeDirectConnection);
+#ifdef USE_HASHTABLES
+#else
     for (long long aa = 0; aa < sizeDirectConnection; aa++) {
       float fl = (float)(m_weights.DirectNGram[aa]);
       fwrite(&fl, 4, 1, fo);
     }
+#endif
   }
   // Save the feature matrix
   if (m_featureMatrixUsed) {
@@ -545,65 +548,94 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
   m_state.HiddenGradient.assign(sizeHidden, 0);
   m_state.CompressGradient.assign(sizeCompress, 0);
   
-  //
+  // learn direct connections between words
   if (sizeDirectConnection > 0) {
-    // learn direct connections between words
     if (word != -1) {
+#ifdef USE_HASHTABLES
+      for (int c = 0; c < numWordsInClass; c++) {
+        int wordInClass = m_classWords[m_vocabularyStorage[word].classIndex][c];
+        WordTripleKey key3(wordInClass, m_state.WordHistory[0], m_state.WordHistory[1]);
+        if (key3.isValid()) {
+          if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
+            m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
+          }
+          m_weights.DirectTriGram[key3] +=
+          alpha * m_state.OutputGradient[wordInClass] - beta * m_weights.DirectTriGram[key3];
+        }
+        WordPairKey key2(wordInClass, m_state.WordHistory[0]);
+        if (key2.isValid()) {
+          if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
+            m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
+          }
+          m_weights.DirectBiGram[key2] +=
+          alpha * m_state.OutputGradient[wordInClass] - beta * m_weights.DirectBiGram[key2];
+        }
+      }
+#else
       unsigned long long hash[c_maxNGramOrder];
-      
       for (int a = 0; a < m_directConnectionOrder; a++) {
         hash[a] = 0;
       }
-      
       for (int a = 0; a < m_directConnectionOrder; a++) {
         int b = 0;
         if ((a > 0) && (m_state.WordHistory[a-1] == -1)) {
           break;
         }
         hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(m_vocabularyStorage[word].classIndex+1);
-        
         for (b=1; b<=a; b++) {
           hash[a]+=c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(m_state.WordHistory[b-1]+1);
         }
         hash[a] = (hash[a]%(sizeDirectConnection/2))+(sizeDirectConnection)/2;
       }
-      
       for (int c = 0; c<numWordsInClass; c++) {
         int a = m_classWords[m_vocabularyStorage[word].classIndex][c];
-        
         for (int b = 0; b < m_directConnectionOrder; b++) {
-          if (hash[b])
-          {
+          if (hash[b]) {
             m_weights.DirectNGram[hash[b]] +=
             alpha * m_state.OutputGradient[a] - m_weights.DirectNGram[hash[b]]*beta;
             hash[b]++;
             hash[b] = hash[b]%sizeDirectConnection;
-          }
-          else
-          {
+          } else {
             break;
           }
         }
       }
+#endif
     }
   }
   //
   // learn direct connections to classes
-  if (sizeDirectConnection>0) {
-    // learn direct connections between words and classes
+  if (sizeDirectConnection > 0) {
+#ifdef USE_HASHTABLES
+    for (int c = sizeVocabulary; c < sizeOutput; c++) {
+      WordTripleKey key3(c, m_state.WordHistory[0], m_state.WordHistory[1]);
+      if (key3.isValid()) {
+        if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
+          m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
+        }
+        m_weights.DirectTriGram[key3] +=
+        alpha * m_state.OutputGradient[c] - beta * m_weights.DirectTriGram[key3];
+      }
+      WordPairKey key2(c, m_state.WordHistory[0]);
+      if (key2.isValid()) {
+        if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
+          m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
+        }
+        m_weights.DirectBiGram[key2] +=
+        alpha * m_state.OutputGradient[c] - beta * m_weights.DirectBiGram[key2];
+      }
+    }
+#else
     unsigned long long hash[c_maxNGramOrder] = {0};
-    
     for (int a = 0; a < m_directConnectionOrder; a++) {
       int b = 0;
       if (a>0) if (m_state.WordHistory[a-1] == -1) break;
       hash[a] = c_Primes[0]*c_Primes[1];
-      
       for (b=1; b<=a; b++) {
         hash[a] += c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(m_state.WordHistory[b-1]+1);
       }
       hash[a] = hash[a]%(sizeDirectConnection/2);
     }
-    
     for (int a = sizeVocabulary; a < sizeOutput; a++) {
       for (int b = 0; b < m_directConnectionOrder; b++) {
         if (hash[b]) {
@@ -615,6 +647,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
         }
       }
     }
+#endif
   }
   
   if (sizeCompress > 0) {
@@ -1424,382 +1457,6 @@ void RnnLMTraining::SaveWordEmbeddings(const string &filename)
   }
   
   fclose(fid);
-}
-
-
-/// <summary>
-/// Forward-propagate the RNN through one full step, starting from
-/// the lastWord w(t) and the previous hidden state activation s(t-1),
-/// as well as optional feature vector f(t)
-/// and direct n-gram connections to the word history,
-/// computing the new hidden state activation s(t)
-/// s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// Updates the RnnState object (but not the weights).
-/// </summary>
-void RnnLMTraining::ForwardPropagateOneStep(int lastWord,
-                                            int word,
-                                            RnnState &state)
-{
-  // Nothing to do when the word is OOV
-  if (word == -1) {
-    return;
-  }
-  
-  // The previous word (lastWord) is the input w(t) to the RN
-  if (lastWord != -1) {
-    state.InputLayer[lastWord] = 1;
-  }
-  
-  // Erase activations of the hidden s(t) and hidden compression c(t) layers
-  int sizeHidden = GetHiddenSize();
-  int sizeCompress = GetCompressSize();
-  state.HiddenLayer.assign(sizeHidden, 0.0);
-  state.CompressLayer.assign(sizeCompress, 0.0);
-  
-  // Forward-propagate s(t-1) -> s(t)
-  // using recurrent connection,
-  // from previous value s(t-1) of the hidden layer at time t-1
-  // to the current value s(t) of the hidden layer at time t
-  // Operation: s(t) <- W * s(t-1)
-  // Note that s(t-1) was previously copied to the recurrent input layer.
-  int sizeInput = GetInputSize();
-  MultiplyMatrixXvectorBlas(state.HiddenLayer,
-                            state.RecurrentLayer,
-                            m_weights.Recurrent2Hidden,
-                            sizeHidden,
-                            0,
-                            sizeHidden);
-  
-  // Forward-propagate w(t) -> s(t)
-  // from the one-hot word representation w(t) at time t
-  // to the hidden layer s(t) at time t
-  // Operation: s(t) <- s(t) + U * w(t)
-  // Note that we add to s(t) which is already non-zero.
-  if (lastWord != -1) {
-    for (int b = 0; b < sizeHidden; b++) {
-      state.HiddenLayer[b] +=
-      state.InputLayer[lastWord] * m_weights.Input2Hidden[lastWord + b * sizeInput];
-    }
-  }
-  
-  int sizeFeature = GetFeatureSize();
-  if (sizeFeature > 0) {
-    // Forward-propagate f(t) -> s(t)
-    // from the feature vector f(t) at time t
-    // to the hidden layer s(t) at time t
-    // Operation: s(t) <- s(t) + F * f(t)
-    // Note that we add to s(t) which is already non-zero.
-    MultiplyMatrixXvectorBlas(state.HiddenLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Hidden,
-                              sizeFeature,
-                              0,
-                              sizeHidden);
-  }
-  
-  // Apply the sigmoid transfer function to the hidden values s(t)
-  // At this point, we have computed: z = W * s(t-1) + U * w(t) + F * f(t)
-  // Operation: 1 / (1 + exp(-z))
-  // We obtain: s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-  for (int a = 0; a < sizeHidden; a++) {
-    state.HiddenLayer[a] = LogisticSigmoid(state.HiddenLayer[a]);
-  }
-  
-  if (sizeCompress > 0) {
-    // Forward-propagate s(t) -> c(t)
-    // from the hidden layer s(t) at time t
-    // to the second (compression) hidden layer c(t) at time t
-    // Operation: C * s(t)
-    // TODO: check where CompressLayer was reset (should be)
-    MultiplyMatrixXvectorBlas(state.CompressLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              0,
-                              sizeCompress);
-    // Apply the sigmoid transfer function to the hidden values c(t)
-    // Operation: 1 / (1 + exp(-z))
-    // We obtain: c(t) = sigmoid(C * s(t))
-    for (int a = 0; a < sizeCompress; a++) {
-      state.CompressLayer[a] = LogisticSigmoid(state.CompressLayer[a]);
-    }
-  }
-  
-  // Reset the output layer (segment that encodes the class probabilities)
-  int sizeOutput = GetOutputSize();
-  int sizeVocabulary = GetVocabularySize();
-  for (int b = sizeVocabulary; b < sizeOutput; b++) {
-    state.OutputLayer[b] = 0;
-  }
-  
-  if (sizeCompress > 0) {
-    // Forward-propagate c(t) -> y(t)
-    // from the second hidden (compression) layer c(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- V * c(t)
-    // Note that this operation is done only on the class outputs,
-    // not on the word vocabulary per class outputs
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.CompressLayer,
-                              m_weights.Compress2Output,
-                              sizeCompress,
-                              sizeVocabulary,
-                              sizeOutput);
-  } else {
-    // Forward-propagate s(t) -> y(t)
-    // from the hidden layer s(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- V * s(t)
-    // Note that this operation is done only on the class outputs,
-    // not on the word vocabulary per class outputs
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              sizeVocabulary,
-                              sizeOutput);
-  }
-  
-  if (sizeFeature > 0) {
-    // Forward-propagate f(t) -> y(t)
-    // from the feature layer f(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- y(t) + G * f(t)
-    // Note that this operation is done only on the class outputs,
-    // not on the word vocabulary per class outputs
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Output,
-                              sizeFeature,
-                              sizeVocabulary,
-                              sizeOutput);
-  }
-  
-  // Apply direct connections to classes
-  // TODO: this is a horrible mess, but the problem is that models
-  // trained with this weird hashing function would be incompatible
-  // with models trained with a proper hash table (unordered_map),
-  // possibly sorted by the n-gram frequency.
-  // It would be nice to make that change (and perhaps retrain old models).
-  int sizeDirectConnection = GetNumDirectConnections();
-  if (sizeDirectConnection > 0) {
-    // this will hold pointers to m_weightDataMain.weightsDirect
-    // that contains hash parameters
-    unsigned long long hash[c_maxNGramOrder];
-    
-    for (int a = 0; a < m_directConnectionOrder; a++) {
-      hash[a] = 0;
-    }
-    for (int a = 0; a < m_directConnectionOrder; a++) {
-      int b = 0;
-      if (a > 0) {
-        if (state.WordHistory[a-1] == -1) {
-          // if OOV was in history, do not use this N-gram feature and higher orders
-          break;
-        }
-      }
-      hash[a] = c_Primes[0] * c_Primes[1];
-      
-      for (b = 1; b <= a; b++) {
-        hash[a] += c_Primes[(a * c_Primes[b] + b) % c_PrimesSize] * (unsigned long long)(state.WordHistory[b-1] + 1);
-        // update hash value based on words from the history
-      }
-      // make sure that starting hash index is in the first half
-      // of m_weightDataMain.weightsDirect (second part is reserved for history->words features)
-      hash[a] = hash[a] % (sizeDirectConnection/2);
-    }
-    
-    for (int a = sizeVocabulary; a < sizeOutput; a++) {
-      for (int b = 0; b < m_directConnectionOrder; b++) {
-        if (hash[b]) {
-          // apply current parameter and move to the next one
-          state.OutputLayer[a] += m_weights.DirectNGram[hash[b]];
-          hash[b]++;
-        } else {
-          break;
-        }
-      }
-    }
-  }
-  
-  // Apply the softmax transfer function to the hidden values s(t)
-  // At this point, we have computed: x = V * s(t) + G * f(t)
-  // Operation: exp(x_v) / sum_v exp(x_v)
-  // We obtain: y(t) = softmax(V * s(t) + G * f(t) + n-gram features)
-  // Note that this softmax is computed here only for classes, not words
-  double sum = 0.0;
-  for (int a = sizeVocabulary; a < sizeOutput; a++) {
-    double val = SafeExponentiate(state.OutputLayer[a]);
-    sum += val;
-    state.OutputLayer[a] = val;
-  }
-  for (int a = sizeVocabulary; a < sizeOutput; a++) {
-    state.OutputLayer[a] /= sum;
-  }
-  
-  // What is the target class of the desired word?
-  int targetClass = m_vocabularyStorage[word].classIndex;
-  
-  // Now, we need to compute the softmax for the words in that target class
-  // (this will update the state)
-  ComputeRnnOutputsForGivenClass(targetClass, state);
-}
-
-
-/// <summary>
-/// Given a target word class, compute the conditional distribution
-/// of all words within that class. The hidden state activation s(t)
-/// is assumed to be already computed. Essentially, computes:
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// but for a specific targetClass.
-/// Updates the RnnState object (but not the weights).
-/// </summary>
-void RnnLMTraining::ComputeRnnOutputsForGivenClass(int targetClass,
-                                                   RnnState &state)
-{
-  // How many words in that target class?
-  const auto targetClassCount = static_cast<int>(m_classWords[targetClass].size());
-  // At which index in output layer y(t) position do the words
-  // of the target class start?
-  const auto minIndexWithinClass = m_classWords[targetClass][0];
-  const auto maxIndexWithinClass = minIndexWithinClass + targetClassCount;
-  // The indexes are in range [minIndexWithinClass, maxIndexWithinClass[
-  // THIS WILL WORK ONLY IF CLASSES ARE CONTINUALLY DEFINED IN VOCABULARY
-  // (i.e., class 10 = words 11 12 13; not 11 12 16)
-  
-  // Reset the outputs in y(t) for that class
-  for (int c = 0; c < targetClassCount; c++) {
-    state.OutputLayer[m_classWords[targetClass][c]] = 0;
-  }
-  
-  int sizeCompress = GetCompressSize();
-  int sizeHidden = GetHiddenSize();
-  if (sizeCompress > 0) {
-    // Forward-propagate c(t) -> y(t)
-    // from the second hidden (compression) layer c(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- V * c(t)
-    // Note that this operation is done only on the words
-    // in the class-specific vocabulary
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.CompressLayer,
-                              m_weights.Compress2Output,
-                              sizeCompress,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-  } else {
-    // Forward-propagate s(t) -> y(t)
-    // from the hidden layer s(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- V * s(t)
-    // Note that this operation is done only on the words
-    // in the class-specific vocabulary
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.HiddenLayer,
-                              m_weights.Hidden2Output,
-                              sizeHidden,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-  }
-  
-  int sizeFeature = GetFeatureSize();
-  if (sizeFeature > 0) {
-    // Forward-propagate f(t) -> y(t)
-    // from the feature layer f(t) at time t
-    // to the output layer y(t) at time t
-    // Operation: y(t) <- y(t) + G * f(t)
-    // Note that this operation is done only on the words
-    // in the class-specific vocabulary
-    MultiplyMatrixXvectorBlas(state.OutputLayer,
-                              state.FeatureLayer,
-                              m_weights.Features2Output,
-                              sizeFeature,
-                              minIndexWithinClass,
-                              maxIndexWithinClass);
-  }
-  
-  // Apply direct connections to words
-  // TODO: clean-up that mess...
-  int sizeDirectConnection = GetNumDirectConnections();
-  if (sizeDirectConnection > 0) {
-    unsigned long long hash[c_maxNGramOrder];
-    
-    for (int a = 0; a < m_directConnectionOrder; a++) {
-      hash[a] = 0;
-    }
-    for (int a = 0; a < m_directConnectionOrder; a++) {
-      int b = 0;
-      if ((a > 0) && (state.WordHistory[a-1] == -1)) {
-        break;
-      }
-      hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(targetClass+1);
-      
-      for (b = 1; b <= a; b++) {
-        hash[a] += c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(state.WordHistory[b-1]+1);
-      }
-      hash[a] = (hash[a] % (sizeDirectConnection/2)) + (sizeDirectConnection)/2;
-    }
-    
-    for (int c = 0; c < targetClassCount; c++) {
-      int a = m_classWords[targetClass][c];
-      
-      for (int b = 0; b < m_directConnectionOrder; b++) if (hash[b]) {
-        state.OutputLayer[a] += m_weights.DirectNGram[hash[b]];
-        hash[b]++;
-        hash[b] = hash[b]%sizeDirectConnection;
-      } else {
-        break;
-      }
-    }
-  }
-  
-  // Apply the softmax transfer function to the hidden values s(t)
-  // At this point, we have computed: x = V * s(t) + G * f(t)
-  // Operation: exp(x_v) / sum_v exp(x_v)
-  // We obtain: y(t) = softmax(V * s(t) + G * f(t) + n-gram features)
-  // Note that this operation is done only on the words
-  // in the class-specific vocabulary
-  double sum = 0;
-  for (int c = 0; c < targetClassCount; c++) {
-    int wordIndex = m_classWords[targetClass][c];
-    double val = SafeExponentiate(state.OutputLayer[wordIndex]);
-    sum += val;
-    state.OutputLayer[wordIndex] = val;
-  }
-  for (int c = 0; c < targetClassCount; c++) {
-    int wordIndex = m_classWords[targetClass][c];
-    state.OutputLayer[wordIndex] /= sum;
-  }
-}
-
-
-/// <summary>
-/// Matrix-vector multiplication routine, somewhat accelerated using loop
-/// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
-/// where A is of size N x M, x is of length M and y is of length N.
-/// The operation can done on a contiguous subset of indices
-/// i in [idxYFrom, idxYTo[ of vector y
-/// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
-/// </summary>
-void RnnLMTraining::MultiplyMatrixXvectorBlas(vector<double> &vectorY,
-                                              vector<double> &vectorX,
-                                              vector<double> &matrixA,
-                                              int widthMatrix,
-                                              int idxYFrom,
-                                              int idxYTo) const
-{
-  double *vecX = &vectorX[0];
-  int idxAFrom = idxYFrom * widthMatrix;
-  double *matA = &matrixA[idxAFrom];
-  int heightMatrix = idxYTo - idxYFrom;
-  double *vecY = &vectorY[idxYFrom];
-  cblas_dgemv(CblasRowMajor, CblasNoTrans,
-              heightMatrix, widthMatrix, 1.0, matA, widthMatrix,
-              vecX, 1,
-              1.0, vecY, 1);
 }
 
 

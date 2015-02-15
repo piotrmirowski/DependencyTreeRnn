@@ -406,6 +406,10 @@ bool RnnTreeLM::TrainRnnModel() {
                << timeFProp << "," << timePPX << ","
                << timeShiftBPTT << "," << timeBackProp << ","
                << timeConnectRNN << "\n";
+#ifdef USE_HASHTABLES
+          cout << m_weights.DirectTriGram.size() << " trigrams\n";
+          cout << m_weights.DirectBiGram.size() << " bigrams\n";
+#endif
         }
         
         book.NextSentence();

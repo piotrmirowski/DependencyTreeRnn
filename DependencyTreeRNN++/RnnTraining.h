@@ -253,21 +253,6 @@ protected:
   void ResetAllRnnActivations(RnnState &state) const;
   
   /// <summary>
-  /// Matrix-vector multiplication routine, somewhat accelerated using loop
-  /// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
-  /// where A is of size N x M, x is of length M and y is of length N.
-  /// The operation can done on a contiguous subset of indices
-  /// i in [idxYFrom, idxYTo[ of vector y
-  /// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
-  /// </summary>
-  void MultiplyMatrixXvectorBlas(std::vector<double> &vectorY,
-                                 std::vector<double> &vectorX,
-                                 std::vector<double> &matrixA,
-                                 int widthMatrix,
-                                 int idxYFrom,
-                                 int idxYTo) const;
-  
-  /// <summary>
   /// Matrix-vector multiplication routine, accelerated using BLAS.
   /// Computes x <- x + A' * y,
   /// i.e., the "inverse" operation to y = A * x (adding the result to x)
@@ -309,34 +294,6 @@ protected:
                              double beta,
                              int numRows,
                              int numCols) const;
-  
-  /// <summary>
-  /// Forward-propagate the RNN through one full step, starting from
-  /// the lastWord w(t) and the previous hidden state activation s(t-1),
-  /// as well as optional feature vector f(t)
-  /// and direct n-gram connections to the word history,
-  /// computing the new hidden state activation s(t)
-  /// s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-  /// x = V * s(t) + G * f(t) + n-gram_connections
-  /// y(t) = softmax_class(x) * softmax_word_given_class(x)
-  /// Updates the RnnState object (but not the weights).
-  /// </summary>
-  void ForwardPropagateOneStep(int lastWord,
-                               int word,
-                               RnnState &state);
-  
-  
-  /// <summary>
-  /// Given a target word class, compute the conditional distribution
-  /// of all words within that class. The hidden state activation s(t)
-  /// is assumed to be already computed. Essentially, computes:
-  /// x = V * s(t) + G * f(t) + n-gram_connections
-  /// y(t) = softmax_class(x) * softmax_word_given_class(x)
-  /// but for a specific targetClass.
-  /// Updates the RnnState object (but not the weights).
-  /// </summary>
-  void ComputeRnnOutputsForGivenClass(const int targetClass,
-                                      RnnState &state);
   
 protected:
   
