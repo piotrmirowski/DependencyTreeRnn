@@ -63,6 +63,9 @@
 #include "CorpusWordReader.h"
 
 
+//#define USE_HASHTABLES
+
+
 /// <summary>
 /// Max n-gram order, used for word history and direct connections
 /// from the word history to the word output
@@ -89,7 +92,7 @@ const unsigned int c_Primes[] = {108641969, 116049371, 125925907, 133333309, 145
     782715551, 790122953, 812345159, 814814293, 893826581, 923456189, 940740127, 953085797, 985184539, 990122807};
 const unsigned int c_PrimesSize = sizeof(c_Primes)/sizeof(c_Primes[0]);
 
-
+#ifdef USE_HASHTABLES
 struct WordTripleKey
 {
     int w1;
@@ -148,9 +151,7 @@ struct std::hash<WordPairKey>
         return hash;
     }
 };
-
-
-//#define USE_HASHTABLES
+#endif
 
 
 struct RnnWeights
