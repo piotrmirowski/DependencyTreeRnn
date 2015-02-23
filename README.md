@@ -18,3 +18,4 @@ Note that the .o objects are stored in directory build/ and the executable is ./
 # Sample training script
 Shell script train_rnn_holmes_debug.sh trains an RNN on a subset of a few books.
 You need to modify the path to where the JSON book files are stored.
+
