@@ -18,6 +18,7 @@ OBJ = $(OBJDIR)/block_allocator.o \
       $(OBJDIR)/ReadJson.o \
       $(OBJDIR)/CorpusUnrollsReader.o \
       $(OBJDIR)/CommandLineParser.o \
+      $(OBJDIR)/Vocabulary.o \
       $(OBJDIR)/RnnLib.o \
       $(OBJDIR)/RnnTraining.o \
       $(OBJDIR)/RnnDependencyTreeLib.o \
@@ -38,6 +39,9 @@ $(OBJDIR)/CorpusUnrollsReader.o: $(SRCDIR)/CorpusUnrollsReader.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/CommandLineParser.o: $(SRCDIR)/CommandLineParser.cpp $(INCLUDES)
+	$(CC) $(CXXFLAGS) -c -o $@ $<
+
+$(OBJDIR)/Vocabulary.o: $(SRCDIR)/Vocabulary.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/RnnLib.o: $(SRCDIR)/RnnLib.cpp $(INCLUDES)

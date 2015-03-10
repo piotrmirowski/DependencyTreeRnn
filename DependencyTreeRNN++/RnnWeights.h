@@ -28,6 +28,8 @@ const unsigned int c_Primes[] = {108641969, 116049371, 125925907, 133333309, 145
 const unsigned int c_PrimesSize = sizeof(c_Primes)/sizeof(c_Primes[0]);
 
 
+#ifdef USE_HASHTABLES
+
 /**
  * Triple of integers that can be used as key in a hashtable
  */
@@ -92,6 +94,7 @@ struct std::hash<WordPairKey>
   }
 };
 
+#endif // USE_HASHTABLES
 
 /**
  * Weights of an RNN

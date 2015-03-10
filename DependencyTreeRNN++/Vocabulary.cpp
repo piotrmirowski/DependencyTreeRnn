@@ -7,8 +7,12 @@
 //
 
 #include <stdio.h>
+#include <cstring>
 #include <assert.h>
+#include <climits>
+#include <cmath>
 #include <math.h>
+#include <algorithm>
 #include "Vocabulary.h"
 
 

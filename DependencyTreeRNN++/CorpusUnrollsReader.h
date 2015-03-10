@@ -320,9 +320,6 @@ protected:
   // List of books (filenames)
   std::vector<std::string> _bookFilenames;
 
-  // Random generator
-  std::default_random_engine _generator;
-
 public:
 
   // Vocabulary: map between a string of text and an integer
