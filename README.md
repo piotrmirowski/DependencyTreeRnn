@@ -22,44 +22,34 @@ You need to modify the path to where the JSON book files are stored.
 # Important hyperparameters
 
 1. Parameters relative to the dataset:
-| Parameter | Type | Description          |
-| ------------- | ----------- | ------ |
-| Help      | string | Display the help window.|
-| Close     | string | Closes a window     |
-   train (string) Training data file (pure text)
-   valid (string) Validation data file (pure text), using during training
-   test (string) Test data file (pure text)
-   sentence-labels (string) Validation/test sentence labels file (pure text)
-   path-json-books (string) Path to the book JSON files
+  * train (string) Training data file (pure text)
+  * valid (string) Validation data file (pure text), using during training
+  * test (string) Test data file (pure text)
+  * sentence-labels (string) Validation/test sentence labels file (pure text)
+  * path-json-books (string) Path to the book JSON files
 
 2. Parameters relative to the dependency labels
-   feature-labels-type (int) Dependency parsing labels:
-      0 = none, use words only
-      1 = concatenate label to word
-      2 = use features in the feature vector, separate from words
-   feature-gamma (double) Decay weight for features consisting of label vectors [default: 0.9]
-      f(t) is a vector with D elements (e.g., D=44 types of dependency labels)
-      f(t) <- gamma * f(t-1), then set element at current label to 1
-      This value could be important for changing the weight given to dependency labels.
-      1 means that there is no decay. 0 means that the decay is immediate.
+  * feature-labels-type (int) Dependency parsing labels:
+    * 0 = none, use words only
+    * 1 = concatenate label to word
+    * 2 = use features in the feature vector, separate from words
+  * feature-gamma (double) Decay weight for features consisting of label vectors [default: 0.9]. Values up to about 1.3 can be accepted (beyond that, the perplexity seems to become very large).
+    * f(t) is a vector with D elements (e.g., D=44 types of dependency labels)
+    * f(t) <- gamma * f(t-1), then set element at current label to 1
+    * This value could be important for changing the weight given to dependency labels. 1 means that there is no decay. 0 means that the decay is immediate.
 
 3. RNN architecture parameters
-   classes (int) Number of word classes used in hierarchical softmax [default value: 200]
-      If vocabulary size if W, choose C around sqrt(W). C=W means 1 class per word, C=1 means standard softmax.
-   hidden (int) Number of nodes in the hidden layer [default value: 100]
-      Try to go higher, perhaps up to 1000 (for 1M-word vocabulary)
-      Linear impact on speed.
-   direct (int) Size of max-entropy hash table storing direct n-gram connections, in millions of entries [default value: 0]
-      Basically, direct=1000 means that 1000*10000000 = 1G direct connections between context words and target word are considered. However, it is not a proper hashtable (which would take too much memory) but a simple vector of 1G entries, with a hashing function that hashed into specific entries in that vector. Hash collisions are totally ignored. Try using direct=1000 or even 2000 hashes if possible.
-   direct-order (int) Order of direct n-gram connections; 2 is like bigram max entropy features [default value: 3]
-      It works on tokens only, and values of 4 or beyond did not bring improvement in others LM tasks.
+  * classes (int) Number of word classes used in hierarchical softmax [default value: 200]. If vocabulary size if W, choose C around sqrt(W). C=W means 1 class per word, C=1 means standard softmax.
+  * hidden (int) Number of nodes in the hidden layer [default value: 100]. Try to go higher, perhaps up to 1000 (for 1M-word vocabulary). Linear impact on speed.
+  * direct (int) Size of max-entropy hash table storing direct n-gram connections, in millions of entries [default value: 0]. Basically, direct=1000 means that 1000*10000000 = 1G direct connections between context words and target word are considered. However, it is not a proper hashtable (which would take too much memory) but a simple vector of 1G entries, with a hashing function that hashed into specific entries in that vector. Hash collisions are totally ignored. Try using direct=1000 or even 2000 hashes if possible.
+  * direct-order (int) Order of direct n-gram connections; 2 is like bigram max entropy features [default value: 3]. It works on tokens only, and values of 4 or beyond did not bring improvement in others LM tasks.
 
 4. Training parameters
-  parser.Register("alpha", "double", "Initial learning rate during gradient descent", "0.1");
-  parser.Register("beta", "double", "L-2 norm regularization coefficient during gradient descent", "0.0000001");
-  parser.Register("min-improvement", "double", "Minimum improvement before learning rate decreases", "1.001");
-  parser.Register("bptt", "int", "Number of steps to propagate error back in time", "4");
-  parser.Register("bptt-block", "int", "Number of time steps after which the error is backpropagated through time", "10");
+  * parser.Register("alpha", "double", "Initial learning rate during gradient descent", "0.1");
+  * parser.Register("beta", "double", "L-2 norm regularization coefficient during gradient descent", "0.0000001");
+  * parser.Register("min-improvement", "double", "Minimum improvement before learning rate decreases", "1.001");
+  * parser.Register("bptt", "int", "Number of steps to propagate error back in time", "4");
+  * parser.Register("bptt-block", "int", "Number of time steps after which the error is backpropagated through time", "10");
 
 1. debug", "bool", "Debugging level", "false");
 7. rnnlm", "string", "RNN language model file to use (save in training / read in test)");
