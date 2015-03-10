@@ -21,7 +21,11 @@ You need to modify the path to where the JSON book files are stored.
 
 # Important hyperparameters
 
-1. Parameters relative to the dataset
+1. Parameters relative to the dataset:
+| Parameter | Type | Description          |
+| ------------- | ----------- | ------ |
+| Help      | string | Display the help window.|
+| Close     | string | Closes a window     |
    train (string) Training data file (pure text)
    valid (string) Validation data file (pure text), using during training
    test (string) Test data file (pure text)
