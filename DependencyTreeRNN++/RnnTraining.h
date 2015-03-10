@@ -77,16 +77,16 @@ public:
   : RnnLM(filename, doLoadModel),
   m_debugMode(debugMode),
   m_wordCounter(0),
-  m_fileCorrectSentenceLabels("") {
+  m_fileCorrectSentenceLabels(""),
+  m_weightsBackup(1, 1, 0, 1, 0, 0),
+  m_stateBackup(1, 1, 0, 1, 0, 0, 0) {
+    m_weightsBackup = m_weights;
+    std::cout << "RnnLMTraining\n";
   }
   
-  void SetTrainFile(const std::string &str) {
-    m_trainFile = str;
-  }
+  void SetTrainFile(const std::string &str) { m_trainFile = str; }
   
-  void SetValidFile(const std::string &str) {
-    m_validationFile = str;
-  }
+  void SetValidFile(const std::string &str) { m_validationFile = str; }
   
   void SetSentenceLabelsFile(const std::string &str) {
     m_fileCorrectSentenceLabels = str;
@@ -104,49 +104,32 @@ public:
     m_featureMatrixFile = str;
   }
   
-  void SetUnkPenalty(double penalty) {
-    m_logProbabilityPenaltyUnk = penalty;
-  }
+  void SetUnkPenalty(double penalty) { m_logProbabilityPenaltyUnk = penalty; }
   
   void SetGradientCutoff(double newGradient) {
     m_gradientCutoff = newGradient;
   }
   
-  void SetIndependent(bool newVal) {
-    m_areSentencesIndependent = newVal;
-  }
-  
+  void SetIndependent(bool newVal) { m_areSentencesIndependent = newVal; }
+
   void SetLearningRate(double newAlpha) {
     m_learningRate = newAlpha;
     m_initialLearningRate = newAlpha;
   }
   
-  void SetRegularization(double newBeta) {
-    m_regularizationRate = newBeta;
-  }
+  void SetRegularization(double newBeta) { m_regularizationRate = newBeta; }
   
   void SetMinImprovement(double newMinImprovement) {
     m_minLogProbaImprovement = newMinImprovement;
   }
   
-  void SetDirectOrder(int newsize) {
-    m_directConnectionOrder = newsize;
-  }
+  void SetNumStepsBPTT(int val) { m_numBpttSteps = val; }
   
-  void SetNumStepsBPTT(int val) {
-    m_numBpttSteps = val;
-  }
+  void SetBPTTBlock(int val) { m_bpttBlockSize = val; }
   
-  void SetBPTTBlock(int val) {
-    m_bpttBlockSize = val;
-  }
+  void SetDebugMode(bool mode) { m_debugMode = mode; }
   
-  void SetDebugMode(bool mode) {        m_debugMode = mode;
-  }
-  
-  void SetFeatureGamma(double val) {
-    m_featureGammaCoeff = val;
-  }
+  void SetFeatureGamma(double val) { m_featureGammaCoeff = val; }
   
 public:
   
@@ -162,14 +145,17 @@ public:
   /// of words from a training file, assuming that the existing vocabulary
   /// is empty.
   /// </summary>
-  virtual bool LearnVocabularyFromTrainFile();
+  virtual bool LearnVocabularyFromTrainFile(int numClasses);
   
   /// <summary>
   /// Read the classes from a file in the following format:
   /// word [TAB] class_index
   /// where class index is between 0 and n-1 and there are n classes.
   /// </summary>
-  bool ReadClasses(const std::string &filename);
+  bool ReadClasses(const std::string &filename) {
+    m_usesClassFile = m_vocab.ReadClasses(filename);
+    return m_usesClassFile;
+  }
   
   /// <summary>
   /// Once we train the RNN model, it is nice to save it to a text or binary file
@@ -202,13 +188,6 @@ protected:
   /// Returns -1 for OOV words and -2 for end of file.
   /// </summary>
   int ReadWordIndexFromFile(WordReader &reader);
-  
-  /// <summary>
-  /// Add a token (word or multi-word entity) to the vocabulary vector
-  /// and store it in the map from word string to word index
-  /// and in the map from word index to word string.
-  /// </summary>
-  int AddWordToVocabulary(const std::string& word);
   
   /// <summary>
   /// Sort the vocabulary by decreasing count of words in the corpus

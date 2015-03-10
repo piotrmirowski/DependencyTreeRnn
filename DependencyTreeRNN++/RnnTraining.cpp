@@ -60,6 +60,7 @@
 #include <math.h>
 #include <time.h>
 #include <assert.h>
+#include "Utils.h"
 #include "RnnLib.h"
 #include "RnnState.h"
 #include "RnnTraining.h"
@@ -83,62 +84,9 @@ int RnnLMTraining::ReadWordIndexFromFile(WordReader &reader)
   // We return -2 if end of file, not to confuse with -1 for OOV words
   int index = -2;
   if (!(word.empty())) {
-    index = SearchWordInVocabulary(word);
+    index = m_vocab.SearchWordInVocabulary(word);
   }
   return index;
-}
-
-
-/// <summary>
-/// Add a token (word or multi-word entity) to the vocabulary vector
-/// and store it in the map from word string to word index
-/// and in the map from word index to word string.
-/// </summary>
-int RnnLMTraining::AddWordToVocabulary(const std::string& word)
-{
-  // Initialize the word index, count and probability to 0
-  VocabWord w = VocabWord();
-  w.word = word;
-  w.prob = 0.0;
-  w.cn = 1;
-  int index = static_cast<int>(m_vocabularyStorage.size());
-  m_vocabularyStorage.push_back(std::move(w));
-  // We need to store the word - index pair in the hash table word -> index
-  // but we will rewrite that map later after sorting the vocabulary by frequency
-  m_mapWord2Index[word] = index;
-  return (index);
-}
-
-
-/// <summary>
-/// Sort the vocabulary by decreasing count of words in the corpus
-/// (used for frequency-based word classes, where class 0 contains
-/// </s>, class 1 contains {the} or another, most frequent token,
-/// class 2 contains a few very frequent tokens, etc...
-/// </summary>
-bool OrderWordCounts(const VocabWord& a, const VocabWord& b) { return a.cn > b.cn; }
-void RnnLMTraining::SortVocabularyByFrequency()
-{
-  std::sort(m_vocabularyStorage.begin(),
-            m_vocabularyStorage.end(),
-            OrderWordCounts);
-}
-
-
-/// <summary>
-/// Sort the words by class, in increasing class order
-/// (used when the classes are provided by an external tools,
-/// e.g., based on maximum entropy features on word bigrams)
-/// </summary>
-bool OrderClassIndex(const VocabWord& a, const VocabWord& b) {
-  return a.classIndex < b.classIndex;
-}
-void RnnLMTraining::SortVocabularyByClass()
-{
-  // Sort the words by class, in increasing class order
-  std::sort(m_vocabularyStorage.begin(),
-            m_vocabularyStorage.end(),
-            OrderClassIndex);
 }
 
 
@@ -149,113 +97,46 @@ void RnnLMTraining::SortVocabularyByClass()
 /// of words from a training file, assuming that the existing vocabulary
 /// is empty.
 /// </summary>
-bool RnnLMTraining::LearnVocabularyFromTrainFile()
+bool RnnLMTraining::LearnVocabularyFromTrainFile(int numClasses)
 {
+  // We cannot use a class file... (classes need to be frequency-based)
+  if (m_usesClassFile) {
+    cerr << "Class files not implemented\n";
+    return false;
+  }
+
   // Word reader file on the training file
   WordReader wr(m_trainFile);
-  
-  // We reinitialize the vocabulary vector,
-  // and the word -> index map,
-  // but not the word -> class map which may have been loaded by ReadClasses.
-  // Note that the map word -> index will be rebuilt after sorting the vocabulary.
-  m_vocabularyStorage.clear();
-  m_mapWord2Index.clear();
-  
+
+  // Create an empty vocabulary structure
+  m_vocab = Vocabulary(numClasses);
   // The first word needs to be end-of-sentence
-  AddWordToVocabulary("</s>");
+  m_vocab.AddWordToVocabulary("</s>");
   
   // Read the words in the file one by one
   long numWordsTrainingFile = 0;
   std::string nextWord = wr.get_next();
   while (!(nextWord.empty())) {
     numWordsTrainingFile++;
-    
     // When a word is unknown, add it to the vocabulary
-    int i = SearchWordInVocabulary(nextWord);
-    if (i == -1) {
-      AddWordToVocabulary(nextWord);
-    } else {
-      // ... otherwise simply increase its count
-      m_vocabularyStorage[i].cn++;
-    }
-    
+    m_vocab.AddWordToVocabulary(nextWord);
     // Read next word
     nextWord = wr.get_next();
   }
   
-  if (m_usesClassFile) {
-    // If we use a class file, the number of word stored in the class map
-    // needs to be exactly the same as the number of words in the vocabulary.
-    if (m_mapWord2Class.size() < m_vocabularyStorage.size()) {
-      printf("Some words in the vocabulary have no class assigned\n");
-      return false;
-    }
-    // Check that every word has a class assigned
-    for (size_t i = 0; i < m_vocabularyStorage.size(); i++) {
-      const std::string &word = m_vocabularyStorage[i].word;
-      if (m_mapWord2Class.find(word) == m_mapWord2Class.end()) {
-        printf("%s missing from class file\n", word.c_str());
-        return false;
-      }
-      m_vocabularyStorage[i].classIndex = m_mapWord2Class[word];
-    }
-    // Sort the words by class
-    SortVocabularyByClass();
-  } else {
-    // Simply sort the words by frequency, making sure that </s> is first
-    int countEos = m_vocabularyStorage[0].cn;
-    m_vocabularyStorage[0].cn = INT_MAX;
-    SortVocabularyByFrequency();
-    m_vocabularyStorage[0].cn = countEos;
-  }
-  
-  // Rebuild the the maps of word <-> word index
-  m_mapWord2Index.clear();
-  m_mapIndex2Word.clear();
-  for (int index = 0; index < GetVocabularySize(); index++) {
-    string word = m_vocabularyStorage[index].word;
-    // Add the word to the hash table word -> index
-    m_mapWord2Index[word] = index;
-    // Add the word to the hash table index -> word
-    m_mapIndex2Word[index] = word;
-  }
-  
+  // Simply sort the words by frequency, making sure that </s> is first
+  m_vocab.SortVocabularyByFrequency();
+  // Assign the words to classes
+  m_vocab.AssignWordsToClasses();
+
+  // Debug
+  m_numTrainWords = numWordsTrainingFile;
   if (m_debugMode) {
     printf("Vocab size: %d\n", GetVocabularySize());
     printf("Words in train file: %ld\n", numWordsTrainingFile);
   }
-  m_numTrainWords = numWordsTrainingFile;
-  
+
   return true;
-}
-
-
-/// <summary>
-/// Save a matrix of floats in binary format
-/// </summary>
-void SaveBinaryMatrix(FILE *fo, int sizeIn, int sizeOut, const vector<double> &vec)
-{
-  if (sizeIn * sizeOut == 0) {
-    return;
-  }
-  for (int idxOut = 0; idxOut < sizeOut; idxOut++) {
-    for (int idxIn = 0; idxIn < sizeIn; idxIn++) {
-      float val = (float)(vec[idxIn + idxOut * sizeIn]);
-      fwrite(&val, 4, 1, fo);
-    }
-  }
-}
-
-
-/// <summary>
-/// Save a vector of floats in binary format
-/// </summary>
-void SaveBinaryVector(FILE *fo, long long size, const vector<double> &vec)
-{
-  for (long long aa = 0; aa < size; aa++) {
-    float val = vec[aa];
-    fwrite(&val, 4, 1, fo);
-  }
 }
 
 
@@ -297,14 +178,14 @@ bool RnnLMTraining::SaveRnnModelToFile()
   fprintf(fo, "compression layer size: %d\n", GetCompressSize());
   fprintf(fo, "output layer size: %d\n", GetOutputSize());
   
-  fprintf(fo, "direct connections: %d\n", GetNumDirectConnections());
-  fprintf(fo, "direct order: %d\n", m_directConnectionOrder);
+  fprintf(fo, "direct connections: %d\n", GetNumDirectConnection());
+  fprintf(fo, "direct order: %d\n", GetOrderDirectConnection());
   
   fprintf(fo, "bptt: %d\n", m_numBpttSteps);
   fprintf(fo, "bptt block: %d\n", m_bpttBlockSize);
   
   fprintf(fo, "vocabulary size: %d\n", GetVocabularySize());
-  fprintf(fo, "class size: %d\n", m_numOutputClasses);
+  fprintf(fo, "class size: %d\n", GetNumClasses());
   
   fprintf(fo, "old classes: 0\n");
   fprintf(fo, "uses class file: %d\n", m_usesClassFile ? 1 : 0);
@@ -318,147 +199,23 @@ bool RnnLMTraining::SaveRnnModelToFile()
   
   // Save the vocabulary, one word per line
   int sizeVocabulary = GetVocabularySize();
-  fprintf(fo, "\nVocabulary:\n");
-  for (int wordIndex = 0; wordIndex < sizeVocabulary; wordIndex++) {
-    int wordCount = m_vocabularyStorage[wordIndex].cn;
-    string word = m_vocabularyStorage[wordIndex].word;
-    int wordClass = m_vocabularyStorage[wordIndex].classIndex;
-    fprintf(fo, "%6d\t%10d\t%s\t%d\n",
-            wordIndex, wordCount, word.c_str(), wordClass);
-  }
-  
-  int sizeInput = GetInputSize();
-  int sizeFeature = GetFeatureSize();
+  m_vocab.Save(fo);
+
   int sizeHidden = GetHiddenSize();
-  int sizeCompress = GetCompressSize();
-  int sizeOutput = GetOutputSize();
-  long sizeDirectConnection = GetNumDirectConnections();
-  
-  if (m_debugMode)
-    printf("Saving %d hidden activations...\n", sizeHidden);
+  printf("Saving %d hidden activations...\n", sizeHidden);
   SaveBinaryVector(fo, sizeHidden, m_state.HiddenLayer);
-  // Save the weights U: input -> hidden (i.e., the word embeddings)
-  if (m_debugMode)
-    printf("Saving %dx%d input->hidden weights...\n", sizeHidden, sizeInput);
-  SaveBinaryMatrix(fo, sizeInput, sizeHidden, m_weights.Input2Hidden);
-  // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
-  if (m_debugMode)
-    printf("Saving %dx%d recurrent hidden->hidden weights...\n", sizeHidden, sizeHidden);
-  SaveBinaryMatrix(fo, sizeHidden, sizeHidden, m_weights.Recurrent2Hidden);
-  // Save the weights feature -> hidden
-  if (m_debugMode)
-    printf("Saving %dx%d feature->hidden weights...\n", sizeHidden, sizeFeature);
-  SaveBinaryMatrix(fo, sizeFeature, sizeHidden, m_weights.Features2Hidden);
-  // Save the weights G: feature -> output
-  if (m_debugMode)
-    printf("Saving %dx%d feature->output weights...\n", sizeOutput, sizeFeature);
-  SaveBinaryMatrix(fo, sizeFeature, sizeOutput, m_weights.Features2Output);
-  // Save the weights hidden -> compress and compress -> output
-  // or simply the weights V: hidden -> output
-  if (sizeCompress > 0) {
-    if (m_debugMode)
-      printf("Saving %dx%d hidden->compress weights...\n", sizeCompress, sizeHidden);
-    SaveBinaryMatrix(fo, sizeHidden, sizeCompress, m_weights.Hidden2Output);
-    if (m_debugMode)
-      printf("Saving %dx%d compress->output weights...\n", sizeCompress, sizeOutput);
-    SaveBinaryMatrix(fo, sizeCompress, sizeOutput, m_weights.Compress2Output);
-  } else {
-    if (m_debugMode)
-      printf("Saving %dx%d hidden->output weights...\n", sizeOutput, sizeHidden);
-    SaveBinaryMatrix(fo, sizeHidden, sizeOutput, m_weights.Hidden2Output);
-  }
-  if (sizeDirectConnection > 0) {
-    // Save the direct connections
-    if (m_debugMode)
-      printf("Saving %ld n-gram connections...\n", sizeDirectConnection);
-#ifdef USE_HASHTABLES
-#else
-    for (long long aa = 0; aa < sizeDirectConnection; aa++) {
-      float fl = (float)(m_weights.DirectNGram[aa]);
-      fwrite(&fl, 4, 1, fo);
-    }
-#endif
-  }
+
+  // Save all the weights
+  m_weights.Save(fo);
+
   // Save the feature matrix
   if (m_featureMatrixUsed) {
-    if (m_debugMode)
-      printf("Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
+    int sizeFeature = GetFeatureSize();
+    printf("Saving %dx%d feature matrix...\n", sizeFeature, sizeVocabulary);
     SaveBinaryMatrix(fo, sizeFeature, sizeVocabulary, m_featureMatrix);
   }
   fclose(fo);
 
-  cout << "hidden: " << sizeHidden << " "
-  << m_state.HiddenLayer[100] << endl;
-  cout << "input2hidden: " << sizeInput << " " << sizeHidden << " "
-  << m_weights.Input2Hidden[100] << endl;
-  cout << "recurrent2hidden: " << sizeHidden << " " << sizeHidden << " "
-  << m_weights.Recurrent2Hidden[100] << endl;
-  cout << "hidden2output: " << sizeHidden << " " << sizeOutput << " "
-  << m_weights.Hidden2Output[100] << endl;
-  cout << "features2hidden: " << sizeFeature << " " << sizeHidden << " "
-  << m_weights.Features2Hidden[100] << endl;
-  cout << "features2output: " << sizeFeature << " " << sizeOutput << " "
-  << m_weights.Features2Output[100] << endl;
-  cout << "direct: " << sizeDirectConnection << " "
-  << m_weights.DirectNGram[100] << endl;
-  
-  return true;
-}
-
-
-/// <summary>
-/// Read the classes from a file in the following format:
-/// word [TAB] class_index
-/// where class index is between 0 and n-1 and there are n classes.
-/// </summary>
-bool RnnLMTraining::ReadClasses(const string &filename)
-{
-  FILE *fin = fopen(filename.c_str(), "r");
-  if (!fin) {
-    printf("Error: unable to open %s\n", filename.c_str());
-    return false;
-  }
-  
-  char w[8192];
-  int clnum;
-  int eos_class = -1;
-  int max_class = -1;
-  set<string> words;
-  while (fscanf(fin, "%s%d", w, &clnum) != EOF) {
-    if (!strcmp(w, "<s>")) {
-      printf("Error: <s> should not be in vocab\n");
-      return false;
-    }
-    
-    m_mapWord2Class[w] = clnum;
-    m_classes.insert(clnum);
-    words.insert(w);
-    
-    max_class = (clnum > max_class) ? (clnum) : (max_class);
-    eos_class = (string(w) == "</s>") ? (clnum) : (eos_class);
-  }
-  
-  if (eos_class == -1) {
-    printf("Error: </s> must be present in the vocabulary\n");
-    return false;
-  }
-  
-  if (m_mapWord2Class.size() == 0) {
-    printf("Error: Empty class file!\n");
-    return false;
-  }
-  
-  // </s> needs to have the highest class index because it needs to come first in the vocabulary...
-  for (auto si=words.begin(); si!=words.end(); si++) {
-    if (m_mapWord2Class[*si] == eos_class) {
-      m_mapWord2Class[*si] = max_class;
-    } else {
-      if (m_mapWord2Class[*si] == max_class) {
-        m_mapWord2Class[*si] = eos_class;
-      }
-    }
-  }
-  m_usesClassFile = true;
   return true;
 }
 
@@ -529,14 +286,16 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
   int sizeHidden = GetHiddenSize();
   int sizeCompress = GetCompressSize();
   int sizeVocabulary = GetVocabularySize();
-  int sizeDirectConnection = GetNumDirectConnections();
-  
+  int sizeDirectConnection = GetNumDirectConnection();
+  int orderDirectConnection = GetOrderDirectConnection();
+
+  // Target word class
+  int targetClass = m_vocab.WordIndex2Class(word);
   // Index at which the words in the current target word class are stored
-  int idxWordClass = m_classWords[m_vocabularyStorage[word].classIndex][0];
+  int idxWordClass = m_vocab.GetNthWordInClass(targetClass, 0);
   // Number of words in that class
-  int numWordsInClass =
-  static_cast<int>(m_classWords[m_vocabularyStorage[word].classIndex].size());
-  
+  int numWordsInClass = m_vocab.SizeTargetClass(targetClass);
+
   // Backprop starts with computing the error vectors (gradients w.r.t. loss)
   // for the words in the vocabulary, i.e.,
   // diff(Loss) / diff(Output_k) = diff(log P(word_i)) / diff(Output_k)
@@ -548,7 +307,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
   //   - diff(log sum_j exp(Output(word_j))) / diff(Output_k)
   // 1) Backprop on words within the target class
   for (int c = 0; c < numWordsInClass; c++) {
-    int a = m_classWords[m_vocabularyStorage[word].classIndex][c];
+    int a = m_vocab.GetNthWordInClass(targetClass, c);
     m_state.OutputGradient[a] = (0 - m_state.OutputLayer[a]);
   }
   m_state.OutputGradient[word] = (1 - m_state.OutputLayer[word]);
@@ -557,7 +316,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
   for (int a = sizeVocabulary; a < sizeOutput; a++) {
     m_state.OutputGradient[a] = (0 - m_state.OutputLayer[a]);
   }
-  int wordClassIdx = m_vocabularyStorage[word].classIndex + sizeVocabulary;
+  int wordClassIdx = targetClass + sizeVocabulary;
   m_state.OutputGradient[wordClassIdx] = (1 - m_state.OutputLayer[wordClassIdx]);
   
   // Reset gradients on hidden layers
@@ -569,7 +328,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
     if (word != -1) {
 #ifdef USE_HASHTABLES
       for (int c = 0; c < numWordsInClass; c++) {
-        int wordInClass = m_classWords[m_vocabularyStorage[word].classIndex][c];
+        int wordInClass = m_vocab.GetNthWordInClass(targetClass, c);
         WordTripleKey key3(wordInClass, m_state.WordHistory[0], m_state.WordHistory[1]);
         if (key3.isValid()) {
           if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
@@ -589,23 +348,23 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
       }
 #else
       unsigned long long hash[c_maxNGramOrder];
-      for (int a = 0; a < m_directConnectionOrder; a++) {
+      for (int a = 0; a < orderDirectConnection; a++) {
         hash[a] = 0;
       }
-      for (int a = 0; a < m_directConnectionOrder; a++) {
+      for (int a = 0; a < orderDirectConnection; a++) {
         int b = 0;
         if ((a > 0) && (m_state.WordHistory[a-1] == -1)) {
           break;
         }
-        hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(m_vocabularyStorage[word].classIndex+1);
+        hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(targetClass+1);
         for (b=1; b<=a; b++) {
           hash[a]+=c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(m_state.WordHistory[b-1]+1);
         }
         hash[a] = (hash[a]%(sizeDirectConnection/2))+(sizeDirectConnection)/2;
       }
-      for (int c = 0; c<numWordsInClass; c++) {
-        int a = m_classWords[m_vocabularyStorage[word].classIndex][c];
-        for (int b = 0; b < m_directConnectionOrder; b++) {
+      for (int c = 0; c < numWordsInClass; c++) {
+        int a = m_vocab.GetNthWordInClass(targetClass, c);
+        for (int b = 0; b < orderDirectConnection; b++) {
           if (hash[b]) {
             m_weights.DirectNGram[hash[b]] +=
             alpha * m_state.OutputGradient[a] - m_weights.DirectNGram[hash[b]]*beta;
@@ -643,7 +402,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
     }
 #else
     unsigned long long hash[c_maxNGramOrder] = {0};
-    for (int a = 0; a < m_directConnectionOrder; a++) {
+    for (int a = 0; a < orderDirectConnection; a++) {
       int b = 0;
       if (a>0) if (m_state.WordHistory[a-1] == -1) break;
       hash[a] = c_Primes[0]*c_Primes[1];
@@ -653,7 +412,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
       hash[a] = hash[a]%(sizeDirectConnection/2);
     }
     for (int a = sizeVocabulary; a < sizeOutput; a++) {
-      for (int b = 0; b < m_directConnectionOrder; b++) {
+      for (int b = 0; b < orderDirectConnection; b++) {
         if (hash[b]) {
           m_weights.DirectNGram[hash[b]] +=
           alpha * m_state.OutputGradient[a] - m_weights.DirectNGram[hash[b]]*beta;
@@ -1018,11 +777,6 @@ bool RnnLMTraining::TrainRnnModel()
   // Keep track of the initial learning rate
   m_initialLearningRate = m_learningRate;
   
-  // Sanity check
-  if (m_numOutputClasses > GetVocabularySize()) {
-    printf("WARNING: number of classes exceeds vocabulary size!\n");
-  }
-  
   bool loopEpochs = true;
   while (loopEpochs) {
     // Reset the log-likelihood of the current iteration
@@ -1096,8 +850,8 @@ bool RnnLMTraining::TrainRnnModel()
         // For perplexity, we do not to count OOV words...
         if (word >= 0) {
           // Compute the log-probability of the current word
-          int outputNodeClass =
-          m_vocabularyStorage[word].classIndex + GetVocabularySize();
+          int targetClass = m_vocab.WordIndex2Class(word);
+          int outputNodeClass = targetClass + GetVocabularySize();
           double condProbaClass = m_state.OutputLayer[outputNodeClass];
           double condProbaWordGivenClass =  m_state.OutputLayer[word];
           trainLogProbability +=
@@ -1327,8 +1081,8 @@ double RnnLMTraining::TestRnnModel(const string &testFile,
       // For perplexity, we do not count OOV words...
       if (word >= 0) {
         // Compute the log-probability of the current word
-        int outputNodeClass =
-        m_vocabularyStorage[word].classIndex + GetVocabularySize();
+        int targetClass = m_vocab.WordIndex2Class(word);
+        int outputNodeClass = targetClass + GetVocabularySize();
         double condProbaClass = m_state.OutputLayer[outputNodeClass];
         double condProbaWordGivenClass =  m_state.OutputLayer[word];
         logProbability +=
@@ -1339,7 +1093,7 @@ double RnnLMTraining::TestRnnModel(const string &testFile,
         if (m_debugMode) {
           cout << word << "\t"
           << condProbaClass * condProbaWordGivenClass << "\t"
-          << m_vocabularyStorage[word].word << endl;
+          << m_vocab.GetNthWord(word) << endl;
         }
       } else {
         if (m_debugMode) {
@@ -1465,7 +1219,7 @@ void RnnLMTraining::SaveWordEmbeddings(const string &filename)
   fprintf(fid, "%d %d\n", GetVocabularySize(), GetHiddenSize());
   
   for (int a = 0; a < GetVocabularySize(); a++) {
-    fprintf(fid, "%s ", m_vocabularyStorage[a].word.c_str());
+    fprintf(fid, "%s ", m_vocab.GetNthWord(a).c_str());
     for (int b = 0; b < GetHiddenSize(); b++) {
       fprintf(fid, "%lf ", m_weights.Input2Hidden[a + b * GetInputSize()]);
     }

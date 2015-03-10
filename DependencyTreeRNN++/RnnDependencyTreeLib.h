@@ -34,7 +34,8 @@ public:
   // otherwise simply set its filename
   : RnnLMTraining(filename, doLoadModel, debugMode),
   // Parameters set by default (can be overriden when loading the model)
-  m_typeOfDepLabels(0), m_oov(1) {
+  m_typeOfDepLabels(0), m_oov(1), m_labels(1) {
+    std::cout << "RnnTreeLM\n";
   }
   
 public:
@@ -46,14 +47,12 @@ public:
    * of words from a training file, assuming that the existing vocabulary
    * is empty.
    */
-  bool LearnVocabularyFromTrainFile();
+  bool LearnVocabularyFromTrainFile(int numClasses);
   
   /**
    * Return the number of labels (features) used in the dependency parsing.
    */
-  int GetLabelSize() const {
-    return static_cast<int>(m_mapLabel2Index.size());
-  }
+  int GetLabelSize() const { return m_labels.GetVocabularySize(); }
   
   /**
    * Set the mode of the dependency labels:
@@ -106,41 +105,27 @@ public:
   
 protected:
   
-  /**
-   * Corpora
-   */
+  // Corpora
   CorpusUnrolls m_corpusVocabulary;
   CorpusUnrolls m_corpusTrain;
   CorpusUnrolls m_corpusValidTest;
   
-  /**
-   * Label vocabulary representation (label -> index of the label)
-   */
+  // Label vocabulary representation (label -> index of the label)
   int m_typeOfDepLabels;
   
-  /**
-   * Index of the OOV (<unk>) word
-   */
+  // Index of the OOV (<unk>) word
   int m_oov;
   
-  /**
-   * Label vocabulary representation (label -> index of the label)
-   */
+  // Label vocabulary hashtables
+  Vocabulary m_labels;
+
+  // Label vocabulary representation (label -> index of the label)
   std::unordered_map<std::string, int> m_mapLabel2Index;
   
-  /**
-   * Return the index of a label in the label vocabulary, or -1 if OOV.
-   */
-  int SearchLabelInVocabulary(const std::string& word) const;
-  
-  /**
-   * Reset the vector of feature labels
-   */
+  // Reset the vector of feature labels
   void ResetFeatureLabelVector(RnnState &state) const;
   
-  /**
-   * Update the vector of feature labels
-   */
+  // Update the vector of feature labels
   void UpdateFeatureLabelVector(int label, RnnState &state) const;
 };
 

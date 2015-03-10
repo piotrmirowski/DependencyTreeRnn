@@ -39,26 +39,20 @@ extern "C" {
 
 
 /// <summary>
-/// Return the index of a label in the vocabulary, or -1 if OOV.
-/// </summary>
-int RnnTreeLM::SearchLabelInVocabulary(const std::string& label) const {
-  auto i = m_mapLabel2Index.find(label);
-  if (i == m_mapLabel2Index.end()) {
-    return -1;
-  } else {
-    return (i->second);
-  }
-}
-
-
-/// <summary>
 /// Before learning the RNN model, we need to learn the vocabulary
 /// from the corpus. Note that the word classes may have been initialized
 /// beforehand using ReadClasses. Computes the unigram distribution
 /// of words from a training file, assuming that the existing vocabulary
 /// is empty.
 /// </summary>
-bool RnnTreeLM::LearnVocabularyFromTrainFile() {
+bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
+
+  // We cannot use a class file... (classes need to be frequency-based)
+  if (m_usesClassFile) {
+    cerr << "Class files not implemented\n";
+    return false;
+  }
+
   // Read the vocabulary from all the files
   // OOV <unk> and EOS </s> tokens are added automatically.
   // Also count the number of words in all the books.
@@ -69,23 +63,6 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile() {
   // and sort it based on frequency
   m_corpusTrain.FilterSortVocabulary(m_corpusVocabulary);
   
-  // We (re)initialize the vocabulary vector,
-  // the word -> index map and the index -> word map,
-  // but not the word -> class map which may have been loaded by ReadClasses.
-  // Note that the map word -> index will be rebuilt after sorting the vocabulary.
-  m_vocabularyStorage.clear();
-  m_mapWord2Index.clear();
-  m_mapIndex2Word.clear();
-  
-  // Reinitialize the label -> index map
-  m_mapLabel2Index.clear();
-  
-  // We cannot use a class file... (classes need to be frequency-based)
-  if (m_usesClassFile) {
-    cerr << "Class files not implemented\n";
-    return false;
-  }
-  
   // Print the vocabulary size and store the file size in words
   printf("Vocab size (before pruning): %d\n",
          m_corpusVocabulary.NumWords());
@@ -93,51 +70,44 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile() {
          m_corpusTrain.NumWords());
   printf("Label vocab size: %d\n",
          m_corpusTrain.NumLabels());
-  
+
+  // Create an empty vocabulary structure for words
+  m_vocab = Vocabulary(numClasses);
   // The first word needs to be end-of-sentence? TBD...
-  AddWordToVocabulary("</s>");
-  //AddWordToVocabulary("<unk>");
-  
+  m_vocab.AddWordToVocabulary("</s>");
   // Copy the words currently in the corpus
   // and insert them into the vocabulary of the RNN
   // and to the maps: word <-> index
   for (int k = 0; k < m_corpusTrain.NumWords(); k++) {
     // Get the word
     string word = m_corpusTrain.vocabularyReverse[k];
-    // Lookup it up in the vocabulary
-    int index = SearchWordInVocabulary(word);
-    if (index == -1) {
-      // Add it to the vocabulary if required
-      index = AddWordToVocabulary(word);
-    }
+    // Lookup it up in the vocabulary and add to vocabulary if required
+    m_vocab.AddWordToVocabulary(word);
     // Store the count of words in the vocabulary
     double count = m_corpusTrain.wordCountsDiscounted[k];
-    m_vocabularyStorage[index].cn = (int)round(count);
-    // Add the word to the hash table word -> index
-    m_mapWord2Index[word] = index;
-    // Add the word to the hash table index -> word
-    m_mapIndex2Word[index] = word;
+    m_vocab.SetWordCount(word, (int)round(count));
   }
+  // Note that we do not sort the words by frequency, as they are already sorted
   
+  // Assign the words to classes
+  m_vocab.AssignWordsToClasses();
+
+  // Note the <unk> (OOV) tag
+  m_oov = m_vocab.SearchWordInVocabulary("<unk>");
+
+  // Create an empty vocabulary structure for labels
+  m_labels = Vocabulary(1);
   // Copy the labels currently in the corpus
-  int index = 0;
   for (int k = 0; k < m_corpusTrain.NumLabels(); k++) {
     // Get the word
     string label = m_corpusTrain.labelsReverse[k];
-    // Lookup it up in the vocabulary of labels
-    if (SearchLabelInVocabulary(label) == -1) {
-      // Add it to the vocabulary if required
-      m_mapLabel2Index[label] = index;
-      index++;
-    }
+    // Lookup it up in the vocabulary of labels and add it if needed
+    m_labels.AddWordToVocabulary(label);
   }
   
   // Copy the vocabulary to the other corpus
   m_corpusValidTest.CopyVocabulary(m_corpusTrain);
 
-  // Note the <unk> (OOV) tag
-  m_oov = SearchWordInVocabulary("<unk>");
-  
   printf("Vocab size: %d\n", GetVocabularySize());
   printf("Unknown tag at: %d\n", m_oov);
   printf("Label vocab size: %d\n", GetLabelSize());
@@ -181,12 +151,7 @@ bool RnnTreeLM::TrainRnnModel() {
   m_wordCounter = m_currentPosTrainFile;
   // Keep track of the initial learning rate
   m_initialLearningRate = m_learningRate;
-  
-  // Sanity check
-  if (m_numOutputClasses > GetVocabularySize()) {
-    cout << "WARNING: number of classes exceeds vocabulary size\n";
-  }
-  
+
   // Load the labels
   LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   
@@ -202,25 +167,18 @@ bool RnnTreeLM::TrainRnnModel() {
     double trainLogProbability = 0.0;
     // Unique word counter (count only once each word token in a sentence)
     int uniqueWordCounter = 0;
-    
+    // Shuffle the order of the books
+    m_corpusTrain.ShuffleBooks();
+
     // Print current epoch and learning rate
     cout << "Iter: " << m_iteration << " Alpha: " << m_learningRate << "\n";
     
     // Reset everything, including word history
     ResetAllRnnActivations(m_state);
     
-    double timeGet = 0;
-    double timeUpdateLabel = 0;
-    double timeFProp = 0;
-    double timePPX = 0;
-    double timeShiftBPTT = 0;
-    double timeBackProp = 0;
-    double timeConnectRNN = 0;
-    clock_t t0 = 0;
-    clock_t t1 = 0;
-    
     // Loop over the books
     clock_t start = clock();
+    cout << m_corpusTrain.NumBooks() << " books to train on\n";
     for (int idxBook = 0; idxBook < m_corpusTrain.NumBooks(); idxBook++) {
       // Read the next book (training file)
       m_corpusTrain.NextBook();
@@ -252,45 +210,41 @@ bool RnnTreeLM::TrainRnnModel() {
           // Loop over the tokens in the sentence unroll
           bool ok = true;
           while (ok) {
-            t0 = clock();
-            
+
             // Get the current word, discount and label
             int tokenNumber = book.CurrentTokenNumberInSentence();
             int nextContextWord = book.CurrentTokenWordAsContext();
             int targetWord = book.CurrentTokenWordAsTarget();
             double discount = book.CurrentTokenDiscount();
             int targetLabel = book.CurrentTokenLabel();
-            t1 = clock();
-            timeGet += t1 - t0;
-            t0 = t1;
+            //cout << "token: " << tokenNumber
+            //<< ", context: " << contextWord << "(" << contextLabel << ")"
+            //<< ", target: " << targetWord << "/" << nextContextWord
+            //<< "(" << targetLabel << ") @" << discount << endl;
 
             // Update the feature matrix with the last dependency label
             if (m_typeOfDepLabels == 2) {
               UpdateFeatureLabelVector(contextLabel, m_state);
+              //cout << "UpdatedFeatureLabelVector(" << contextLabel << ")\n";
             }
-            t1 = clock();
-            timeUpdateLabel += t1 - t0;
-            t0 = t1;
-            
+
             // Run one step of the RNN to predict word
             // from contextWord, contextLabel and the last hidden state
             ForwardPropagateOneStep(contextWord, targetWord, m_state);
-            t1 = clock();
-            timeFProp += t1 - t0;
-            t0 = t1;
-            
+
             // For perplexity, we do not count OOV words...
             if ((targetWord >= 0) && (targetWord != m_oov)) {
               // Compute the log-probability of the current word
               int outputNodeClass =
-              m_vocabularyStorage[targetWord].classIndex + GetVocabularySize();
-              double condProbaClass =
-              m_state.OutputLayer[outputNodeClass];
-              double condProbaWordGivenClass =
-              m_state.OutputLayer[targetWord];
+              m_vocab.WordIndex2Class(targetWord) + GetVocabularySize();
+              double condProbaClass = m_state.OutputLayer[outputNodeClass];
+              double condProbaWordGivenClass = m_state.OutputLayer[targetWord];
               double logProbabilityWord =
               log10(condProbaClass * condProbaWordGivenClass);
-              
+              //cout << "class node: " << outputNodeClass
+              //<< " p=" << condProbaClass
+              //<< ", word p=" << condProbaWordGivenClass << "\n";
+
               // Did we see already that word token (at that position)
               // in the sentence?
               if (logProbSentence.find(tokenNumber) == logProbSentence.end()) {
@@ -299,20 +253,14 @@ bool RnnTreeLM::TrainRnnModel() {
                 // Contribute the log-likelihood to the sentence and corpus
                 trainLogProbability += logProbabilityWord;
                 uniqueWordCounter++;
+                //cout << "Stored logp\n";
               }
               m_wordCounter++;
             }
             
             // Safety check (that log-likelihood does not diverge)
-            if (trainLogProbability != trainLogProbability) {
-              // || (isinf(trainLogProbability)
-              cout << "\nNumerical error infinite log-likelihood\n";
-              return false;
-            }
-            t1 = clock();
-            timePPX += t1 - t0;
-            t0 = t1;
-            
+            assert(!(trainLogProbability != trainLogProbability));
+
             // Shift memory needed for BPTT to next time step
             if (m_numBpttSteps > 0) {
               // shift memory needed for bptt to next time step
@@ -341,10 +289,7 @@ bool RnnTreeLM::TrainRnnModel() {
                 }
               }
             }
-            t1 = clock();
-            timeShiftBPTT += t1 - t0;
-            t0 = t1;
-            
+
             // Discount the learning rate to handle
             // multiple occurrences of the same word
             // in the dependency parse tree
@@ -355,10 +300,7 @@ bool RnnTreeLM::TrainRnnModel() {
             // stochastic gradient descent (SGD) using optional
             // back-propagation through time (BPTT)
             BackPropagateErrorsThenOneStepGradientDescent(contextWord, targetWord);
-            t1 = clock();
-            timeBackProp += t1 - t0;
-            t0 = t1;
-            
+
             // Undiscount the learning rate
             m_learningRate = alphaBackup;
             
@@ -372,10 +314,7 @@ bool RnnTreeLM::TrainRnnModel() {
             ForwardPropagateWordHistory(m_state, contextWord, nextContextWord);
             // Update the last label
             contextLabel = targetLabel;
-            t1 = clock();
-            timeConnectRNN += t1 - t0;
-            t0 = t1;
-            
+
             // Go to the next word
             ok = (book.NextTokenInUnroll() >= 0);
           } // Loop over tokens in the unroll of a sentence
@@ -383,7 +322,7 @@ bool RnnTreeLM::TrainRnnModel() {
         } // Loop over unrolls of a sentence
         
         // Verbose
-        if ((idxSentence % 1000) == 0) {
+        if (((idxSentence % 1000) == 0) && (idxSentence > 0)) {
           clock_t now = clock();
           double entropy =
           -trainLogProbability/log10((double)2) / uniqueWordCounter;
@@ -391,20 +330,15 @@ bool RnnTreeLM::TrainRnnModel() {
           ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
           ostringstream buf;
           buf << "Iter," << m_iteration
-              << ",Book," << idxBook
               << ",Alpha," << m_learningRate
-              << ",TRAINentropy," << entropy
+              << ",Book," << idxBook
+              << ",TRAINent," << entropy
               << ",TRAINppx," << perplexity
               << ",fraction," << 100 * m_wordCounter/((double)m_numTrainWords)
               << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
           buf << "\n";
           logFile << buf.str();
           cout << buf.str();
-          cout << "TimeSpent," << idxSentence << ","
-               << timeGet << "," << timeUpdateLabel << ","
-               << timeFProp << "," << timePPX << ","
-               << timeShiftBPTT << "," << timeBackProp << ","
-               << timeConnectRNN << "\n";
 #ifdef USE_HASHTABLES
           cout << m_weights.DirectTriGram.size() << " trigrams\n";
           cout << m_weights.DirectBiGram.size() << " bigrams\n";
@@ -424,7 +358,7 @@ bool RnnTreeLM::TrainRnnModel() {
     buf << "Iter," << m_iteration
         << ",Alpha," << m_learningRate
         << ",Book,ALL"
-        << ",TRAINentropy," << trainEntropy
+        << ",TRAINent," << trainEntropy
         << ",TRAINppx," << trainPerplexity
         << ",fraction,100"
         << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
@@ -456,12 +390,11 @@ bool RnnTreeLM::TrainRnnModel() {
     ostringstream buf2;
     buf2 << "Iter," << m_iteration
          << ",Alpha," << m_learningRate
-         << ",VALIDaccuracy," << validAccuracy
-         << ",VALIDentropy," << validEntropy
+         << ",VALIDacc," << validAccuracy
+         << ",VALIDent," << validEntropy
          << ",VALIDppx," << validPerplexity
          << ",fraction,100"
-         << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
-    buf2 << "\n";
+         << ",words/sec,0\n";
     logFile << buf2.str();
     cout << buf2.str();
     
@@ -487,11 +420,9 @@ bool RnnTreeLM::TrainRnnModel() {
       if (!m_doStartReducingLearningRate) {
         m_doStartReducingLearningRate = true;
       } else {
-        SaveRnnModelToFile();
-        LoadRnnModelFromFile();
-        // Let's also save the word embeddings
-        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
         loopEpochs = false;
+        SaveRnnModelToFile();
+        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
         break;
       }
     }
@@ -504,8 +435,6 @@ bool RnnTreeLM::TrainRnnModel() {
       validLogProbability = 0;
       m_iteration++;
       SaveRnnModelToFile();
-      LoadRnnModelFromFile();
-      // Let's also save the word embeddings
       SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
       printf("Saved the model\n");
     }
@@ -597,7 +526,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
           if ((targetWord >= 0) && (targetWord != m_oov)) {
             // Compute the log-probability of the current word
             int outputNodeClass =
-            m_vocabularyStorage[targetWord].classIndex + GetVocabularySize();
+            m_vocab.WordIndex2Class(targetWord) + GetVocabularySize();
             double condProbaClass =
             m_state.OutputLayer[outputNodeClass];
             double condProbaWordGivenClass =
@@ -620,9 +549,9 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
                 cout << tokenNumber << "\t"
                      << targetWord << "\t"
                      << logProbabilityWord << "\t"
-                     << m_vocabularyStorage[contextWord].word << "\t"
+                     << m_vocab.Word2WordIndex(contextWord) << "\t"
                      << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                     << m_vocabularyStorage[targetWord].word << "\n";
+                     << m_vocab.Word2WordIndex(targetWord) << "\n";
               }
             } else {
               // We have already use the word's log-probability in the score
@@ -632,18 +561,18 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
                 cout << tokenNumber << "\t"
                      << targetWord << "\t"
                      << logProbabilityWord << "\t"
-                     << m_vocabularyStorage[contextWord].word << "\t"
+                     << m_vocab.Word2WordIndex(contextWord) << "\t"
                      << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                     << m_vocabularyStorage[targetWord].word << "\t(already seen)\n";
+                     << m_vocab.Word2WordIndex(targetWord) << "\t(seen)\n";
               }
             }
           } else {
             if (m_debugMode) {
               // Out-of-vocabulary words have probability 0 and index -1
               cout << tokenNumber << "\t-1\t0\t"
-                   << m_vocabularyStorage[contextWord].word << "\t"
+                   << m_vocab.Word2WordIndex(contextWord) << "\t"
                    << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                   << m_vocabularyStorage[targetWord].word << "\n";
+                   << m_vocab.Word2WordIndex(targetWord) << "\n";
             }
             numUnk++;
           }

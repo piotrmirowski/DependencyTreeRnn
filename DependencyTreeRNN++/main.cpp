@@ -72,33 +72,60 @@ int main(int argc, char *argv[])
 {
   // Command line arguments
   CommandLineParser parser;
-  parser.Register("debug", "bool", "Debugging level", "false");
-  parser.Register("train", "string", "Training data file (pure text)");
-  parser.Register("valid", "string", "Validation data file (pure text), using during training");
-  parser.Register("test", "string", "Test data file (pure text)");
-  parser.Register("sentence-labels", "string", "Validation/test sentence labels file (pure text)");
-  parser.Register("path-json-books", "string", "Path to the book JSON files", "./");
-  parser.Register("rnnlm", "string", "RNN language model file to use (save in training / read in test)");
-  parser.Register("features", "string", "Potentially ginouromous auxiliary feature file for training/test data, with one vector per training/test word");
-  parser.Register("features-valid", "string", "Potentially ginourmous auxiliary feature file for validation data, with one vector per validation word");
-  parser.Register("feature-matrix", "string", "Topic model matrix with word representations (e.g., LDA, LSA, Word2Vec, etc...)");
-  parser.Register("feature-labels-type", "int", "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
-  parser.Register("feature-gamma", "double", "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
-  parser.Register("class", "int", "Number of classes", "200");
-  parser.Register("class-file", "string", "File specifying the class of each word");
-  parser.Register("gradient-cutoff", "double", "decay weight for features matrix", "15");
-  parser.Register("independent", "bool", "Is each line in the training/testing file independent?", "true");
-  parser.Register("alpha", "double", "Initial learning rate during gradient descent", "0.1");
-  parser.Register("beta", "double", "L-2 norm regularization coefficient during gradient descent", "0.0000001");
-  parser.Register("min-improvement", "double", "Minimum improvement before learning rate decreases", "1.001");
-  parser.Register("hidden", "int", "Number of nodes in the hidden layer", "100");
-  parser.Register("compression", "int", "Number of nodes in the compression layer", "0");
-  parser.Register("direct", "int", "Size of max-ent hash table storing direct n-gram connections, in millions of entries", "0");
-  parser.Register("direct-order", "int", "Order of direct n-gram connections; 2 is like bigram max ent features", "3");
-  parser.Register("bptt", "int", "Number of steps to propagate error back in time", "4");
-  parser.Register("bptt-block", "int", "Number of time steps after which the error is backpropagated through time", "10");
-  parser.Register("unk-penalty", "double", "Penalty to add to <unk> in rescoring; normalizes type vs. token distinction", "-11");
-  parser.Register("min-word-occurrence", "int", "Mininum word occurrence to include word into vocabulary", "3");
+  parser.Register("debug", "bool",
+                  "Debugging level", "false");
+  parser.Register("train", "string",
+                  "Training data file (pure text)");
+  parser.Register("valid", "string",
+                  "Validation data file (pure text), using during training");
+  parser.Register("test", "string",
+                  "Test data file (pure text)");
+  parser.Register("sentence-labels", "string",
+                  "Validation/test sentence labels file (pure text)");
+  parser.Register("path-json-books", "string",
+                  "Path to the book JSON files", "./");
+  parser.Register("rnnlm", "string",
+                  "RNN language model file to use (save in training / read in test)");
+  parser.Register("features", "string",
+                  "Potentially ginouromous auxiliary feature file for training/test data, with one vector per training/test word");
+  parser.Register("features-valid", "string",
+                  "Potentially ginourmous auxiliary feature file for validation data, with one vector per validation word");
+  parser.Register("feature-matrix", "string",
+                  "Topic model matrix with word representations (e.g., LDA, LSA, Word2Vec, etc...)");
+  parser.Register("feature-labels-type", "int",
+                  "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
+  parser.Register("feature-gamma", "double",
+                  "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
+  parser.Register("class", "int",
+                  "Number of classes", "200");
+  parser.Register("class-file", "string",
+                  "File specifying the class of each word");
+  parser.Register("gradient-cutoff", "double",
+                  "decay weight for features matrix", "15");
+  parser.Register("independent", "bool",
+                  "Is each line in the training/testing file independent?", "true");
+  parser.Register("alpha", "double",
+                  "Initial learning rate during gradient descent", "0.1");
+  parser.Register("beta", "double",
+                  "L-2 norm regularization coefficient during gradient descent", "0.0000001");
+  parser.Register("min-improvement", "double",
+                  "Minimum improvement before learning rate decreases", "1.001");
+  parser.Register("hidden", "int",
+                  "Number of nodes in the hidden layer", "100");
+  parser.Register("compression", "int",
+                  "Number of nodes in the compression layer", "0");
+  parser.Register("direct", "int",
+                  "Size of max-ent hash table storing direct n-gram connections, in millions of entries", "0");
+  parser.Register("direct-order", "int",
+                  "Order of direct n-gram connections; 2 is like bigram max ent features", "3");
+  parser.Register("bptt", "int",
+                  "Number of steps to propagate error back in time", "4");
+  parser.Register("bptt-block", "int",
+                  "Number of time steps after which the error is backpropagated through time", "10");
+  parser.Register("unk-penalty", "double",
+                  "Penalty to add to <unk> in rescoring; normalizes type vs. token distinction", "-11");
+  parser.Register("min-word-occurrence", "int",
+                  "Mininum word occurrence to include word into vocabulary", "3");
   
   // Parse the command line arguments
   bool status = parser.Parse(argv, argc);
@@ -313,6 +340,7 @@ int main(int argc, char *argv[])
     RnnTreeLM model(rnnModelFilename, isRnnModelPresent, debugMode);
     
     // Add the book names to the training corpus
+    model.SetTrainFile(trainFilename);
     ifstream trainFileStream(trainFilename);
     string filename;
     string pathname(jsonPathname);
@@ -322,15 +350,16 @@ int main(int argc, char *argv[])
     }
     
     // Add the book names to the validation corpus
+    model.SetValidFile(validFilename);
     ifstream valid_file_stream(validFilename);
     while (valid_file_stream >> filename) {
       string fullname = pathname + filename;
       model.AddBookTestValid(fullname);
     }
-    
+    // Set the sentence labels for validation or test
+    model.SetSentenceLabelsFile(sentenceLabelsFilename);
+
     // Set the filenames
-    model.SetTrainFile(trainFilename);
-    model.SetValidFile(validFilename);
     /*
      if (isFeatureTrainOrTestDataSet) {
      if (!isFeatureValidFileSet)
@@ -350,35 +379,30 @@ int main(int argc, char *argv[])
      }
      */
 
-    // Set the sentence labels for validation or test
-    model.SetSentenceLabelsFile(sentenceLabelsFilename);
-    // Do we use custom classes?
-    // In a weird way, we read the classes before initializing the RNN
+    // TODO: store the vocab and labels in the model!
+    // Read the vocabulary and word classes
     if (isClassFileSet) {
+      // Do we use custom classes?
       model.ReadClasses(classFilename);
+    } else {
+      // Set the minimum number of word occurrence
+      model.SetMinWordOccurrence(minWordOccurrence);
+      // Extract the vocabulary from the training file
+      model.LearnVocabularyFromTrainFile(numClasses);
     }
-    
-    // Set the minimum number of word occurrence
-    model.SetMinWordOccurrence(minWordOccurrence);
-    // Extract the vocabulary from the training file
-    model.LearnVocabularyFromTrainFile();
 
-    int sizeVocabulary = static_cast<int>(model.m_vocabularyStorage.size());
+    // Initialize the model...
+    int sizeVocabulary = model.GetVocabularySize();
     int sizeVocabLabels =
-    (featureDepLabelsType == 2) ? static_cast<int>(model.GetLabelSize()) : 0;
+    (featureDepLabelsType == 2) ? model.GetLabelSize() : 0;
     if (!isRnnModelPresent) {
-      // Initialize the model...
       model.InitializeRnnModel(sizeVocabulary,
                                sizeHiddenLayer,
-                               sizeCompressionLayer,
-                               sizeVocabulary + numClasses,
                                sizeVocabLabels,
+                               numClasses,
+                               sizeCompressionLayer,
                                sizeDirectNGramConnections,
-                               model.m_state,
-                               model.m_weights,
-                               model.m_bpttVectors);
-      // Set the direct connections n-gram order
-      model.SetDirectOrder(orderDirectNGramConnections);
+                               orderDirectNGramConnections);
       // Set the type of dependency labels
       model.SetDependencyLabelType(featureDepLabelsType);
       // Set the feature label decay (gamma) weight
@@ -390,10 +414,13 @@ int main(int argc, char *argv[])
       assert(model.GetCompressSize() == sizeCompressionLayer);
       assert(model.GetOutputSize() == sizeVocabulary + numClasses);
       assert(model.GetFeatureSize() == sizeVocabLabels);
-      assert(model.GetNumDirectConnections() == sizeDirectNGramConnections);
-      // One thing needs to be done: assign the words to classes!
-      model.AssignWordsToClasses();
-      model.LoadRnnModelFromFile();
+      assert(model.GetNumDirectConnection() == sizeDirectNGramConnections);
+      assert(model.GetOrderDirectConnection() == orderDirectNGramConnections);
+      // TODO: this needs to be stored in the model
+      // Set the type of dependency labels
+      model.SetDependencyLabelType(featureDepLabelsType);
+      // Set the feature label decay (gamma) weight
+      model.SetFeatureGamma(featureGammaCoeff);
     }
 
     // When the model's training is restarting, these learning parameters
@@ -416,8 +443,6 @@ int main(int argc, char *argv[])
   // Test the RNN on the dataset
   if (isTestDataSet && isRnnModelSet) {
     RnnLMTraining model(rnnModelFilename, true, debugMode);
-    // One thing needs to be done: assign the words to classes!
-    model.AssignWordsToClasses();
     
     // Test the RNN on the test data
     int testWordCount = 0;

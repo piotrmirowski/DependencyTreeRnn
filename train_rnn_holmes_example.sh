@@ -12,6 +12,7 @@ RNN_CLASSES=500
 NGRAM_SIZE_MB=2000
 NGRAM_ORDER=3
 BPTT_ORDER=4
+FEATURE_GAMMA=0.5
 
 
 # Automatic path generation
@@ -27,6 +28,7 @@ FILE_MODEL=$FILE_MODEL"_c"$RNN_CLASSES
 FILE_MODEL=$FILE_MODEL"_m"$NGRAM_SIZE_MB
 FILE_MODEL=$FILE_MODEL"_d"$NGRAM_ORDER
 FILE_MODEL=$FILE_MODEL"_b"$BPTT_ORDER
+FILE_MODEL=$FILE_MODEL"_g"$FEATURE_GAMMA
 FILE_MODEL=$FILE_MODEL".model"
 echo "RNN model will be stored in $FILE_MODEL..."
 
@@ -44,4 +46,5 @@ RnnDependencyTree \
   -direct-order $NGRAM_ORDER \
   -bptt $BPTT_ORDER \
   -class $RNN_CLASSES \
+  -feature-gamma $FEATURE_GAMMA \
   -debug false
