@@ -97,6 +97,7 @@ def constructDAG(sentence):
 
 # Create the output path
 os.mkdir(sys.argv[2])
+threshold = int(sys.argv[3])
 
 for filename in glob.glob(sys.argv[1]+ "/*"):
     allSentences = []
@@ -107,8 +108,9 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
 
     for sentence in sentences:
         sentenceDAG = constructDAG(sentence)
-        unrolls = extractUnrolls(sentenceDAG)
-        allSentences.append(unrolls)
+        if (len(sentenceDAG.nodes()) < threshold):
+            unrolls = extractUnrolls(sentenceDAG)
+            allSentences.append(unrolls)
 
     with open(sys.argv[2] + "/" + os.path.basename(filename) + ".unrolls.json", "wb") as out:
         json.dump(allSentences, out)
