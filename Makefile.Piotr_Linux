@@ -49,7 +49,7 @@ $(OBJDIR)/Vocabulary.o: $(SRCDIR)/Vocabulary.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/RnnWeights.o: $(SRCDIR)/RnnWeights.cpp $(INCLUDES)
-        $(CC) $(CXXFLAGS) -c -o $@ $<
+	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/RnnLib.o: $(SRCDIR)/RnnLib.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
