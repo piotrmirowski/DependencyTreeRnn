@@ -6,12 +6,12 @@ PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 PATH_JSON_PIOTR_MAC="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 
 DEP_LABELS=2
-MIN_WORD_OCCURRENCE=5
+MIN_WORD_OCCURRENCE=2
 RNN_HIDDENS=100
 RNN_CLASSES=100
-NGRAM_SIZE_MB=200
+NGRAM_SIZE_MB=2000
 NGRAM_ORDER=3
-BPTT_ORDER=4
+BPTT_ORDER=10
 
 
 # Automatic path generation

@@ -38,7 +38,7 @@ public:
    * Constructor.
    */
   Vocabulary(int numClasses)
-  : m_numClasses(numClasses) {
+  : m_numClasses(numClasses), m_useClassFile(false) {
   }
 
   /**

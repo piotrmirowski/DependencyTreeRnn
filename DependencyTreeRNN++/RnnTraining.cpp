@@ -639,9 +639,10 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
     for (int b = 0; b < sizeFeature; b++) {
       m_bpttVectors.FeatureLayer[b] = m_state.FeatureLayer[b];
     }
-    
-    if (((m_wordCounter % m_bpttBlockSize) == 0) || (m_areSentencesIndependent && (word == 0))) {
-      for (int step = 0; step<m_numBpttSteps+m_bpttBlockSize-2; step++) {
+
+    if (((m_wordCounter % m_bpttBlockSize) == 0) ||
+        (m_areSentencesIndependent && (word == 0))) {
+      for (int step = 0; step < m_bpttVectors.NumSteps() - 2; step++) {
         for (int a = 0; a < sizeHidden; a++) {
           double dLdSa = m_state.HiddenLayer[a];
           m_state.HiddenGradient[a] = m_state.HiddenGradient[a] * dLdSa * (1 - dLdSa);
@@ -699,7 +700,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
           m_bpttVectors.HiddenGradient[(step+1) * sizeHidden+a];
         }
         
-        if (step < m_numBpttSteps + m_bpttBlockSize - 3) {
+        if (step < m_bpttVectors.NumSteps() - 3) {
           for (int a = 0; a < sizeHidden; a++)
           {
             m_state.HiddenLayer[a] =
@@ -710,7 +711,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
         }
       }
       
-      for (int a = 0; a < (m_numBpttSteps+m_bpttBlockSize) * sizeHidden; a++) {
+      for (int a = 0; a < m_bpttVectors.NumSteps() * sizeHidden; a++) {
         m_bpttVectors.HiddenGradient[a] = 0;
       }
       
@@ -738,7 +739,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
         m_bpttVectors.WeightsFeature2Hidden.assign(sizeHidden * sizeFeature, 0);
       }
       
-      for (int step = 0; step < m_numBpttSteps + m_bpttBlockSize - 2; step++) {
+      for (int step = 0; step < m_bpttVectors.NumSteps() - 2; step++) {
         int wordAtStep = m_bpttVectors.History[step];
         if (wordAtStep != -1) {
           for (int b = 0; b < sizeHidden; b++)
@@ -867,33 +868,8 @@ bool RnnLMTraining::TrainRnnModel()
         }
         
         // Shift memory needed for BPTT to next time step
-        if (m_numBpttSteps > 0) {
-          // shift memory needed for bptt to next time step
-          for (int a = m_numBpttSteps+m_bpttBlockSize-1; a > 0; a--)
-          {
-            m_bpttVectors.History[a] = m_bpttVectors.History[a-1];
-          }
-          m_bpttVectors.History[0] = lastWord;
-          
-          int sizeHidden = GetHiddenSize();
-          for (int a = m_numBpttSteps+m_bpttBlockSize-1; a > 0; a--)
-          {
-            for (int b = 0; b < sizeHidden; b++)
-            {
-              m_bpttVectors.HiddenLayer[a * sizeHidden+b] = m_bpttVectors.HiddenLayer[(a-1) * sizeHidden+b];
-              m_bpttVectors.HiddenGradient[a * sizeHidden+b] = m_bpttVectors.HiddenGradient[(a-1) * sizeHidden+b];
-            }
-          }
-          
-          for (int a = m_numBpttSteps+m_bpttBlockSize-1; a>0; a--)
-          {
-            for (int b = 0; b < sizeFeature; b++)
-            {
-              m_bpttVectors.FeatureLayer[a * sizeFeature+b] = m_bpttVectors.FeatureLayer[(a-1) * sizeFeature+b];
-            }
-          }
-        }
-        
+        m_bpttVectors.Shift(lastWord);
+
         // Back-propagate the error and run one step of
         // stochastic gradient descent (SGD) using optional
         // back-propagation through time (BPTT)
@@ -927,24 +903,21 @@ bool RnnLMTraining::TrainRnnModel()
     printf("Iter: %3d\tAlpha: %f\t   TRAIN entropy: %.4f    PPX: %.4f   Words/sec: %.1f\n", m_iteration, m_learningRate, trainEntropy, trainPerplexity, m_wordCounter/((double)(now-start)/1000.0));
     
     // Validation
-    int validWordCounter = 0;
     vector<double> sentenceScores;
-    double validLogProbability =
+    double validLogProbability, validEntropy, validAccuracy, validPerplexity;
     TestRnnModel(m_validationFile,
                  m_featureValidationFile,
-                 validWordCounter,
-                 sentenceScores);
+                 sentenceScores,
+                 validLogProbability,
+                 validPerplexity,
+                 validEntropy,
+                 validAccuracy);
     printf("Training iteration: %d\n", m_iteration);
     printf("VALID log probability: %f\n", validLogProbability);
-    double validPerplexity =
-    (validWordCounter == 0) ? 0 :
-    ExponentiateBase10(-validLogProbability / (double)validWordCounter);
     printf("VALID PPL net less OOVs: %f\n", validPerplexity);
-    double validEntropy =
-    (validWordCounter == 0) ? 0 :
-    -validLogProbability / log10((double)2) / validWordCounter;
     printf("VALID entropy: %.4f\n", validEntropy);
-    
+    printf("VALID accuracy: %f\n", validAccuracy);
+
     // Reset the position in the training file
     m_wordCounter = 0;
     m_currentPosTrainFile = 0;
@@ -996,10 +969,13 @@ bool RnnLMTraining::TrainRnnModel()
 /// <summary>
 /// Test a Recurrent Neural Network model on a test file
 /// </summary>
-double RnnLMTraining::TestRnnModel(const string &testFile,
-                                   const string &featureFile,
-                                   int &wordCounter,
-                                   vector<double> &sentenceScores)
+bool RnnLMTraining::TestRnnModel(const string &testFile,
+                                 const string &featureFile,
+                                 vector<double> &sentenceScores,
+                                 double &logProbability,
+                                 double &perplexity,
+                                 double &entropy,
+                                 double &accuracy)
 {
   // Do we use an external file with feature vectors for each
   // consecutive word in the test set?
@@ -1021,29 +997,33 @@ double RnnLMTraining::TestRnnModel(const string &testFile,
   if (isFeatureFileUsed) {
     if (featureFile.empty()) {
       printf("Feature file for the test data is needed to evaluate this model (use -features <FILE>)\n");
-      return 0;
+      return false;
     }
     featureFileId = fopen(featureFile.c_str(), "rb");
     int a;
     fread(&a, sizeof(a), 1, featureFileId);
     if (a != sizeFeature) {
       printf("Mismatch between feature vector size in model file and feature file (model uses %d features, in %s found %d features)\n", sizeFeature, m_featureFile.c_str(), a);
-      return 0;
+      return false;
     }
   }
   
-  if (m_debugMode) {
-    cout << "Index   P(NET)          Word\n";
-    cout << "----------------------------------\n";
-  }
-  
+  // Scores file
+  string scoresFilename = m_rnnModelFile + ".scores.";
+  size_t sep = testFile.find_last_of("\\/");
+  if (sep != string::npos)
+    scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
+  scoresFilename += ".txt";
+  ofstream scoresFile(scoresFilename);
+  cout << "Writing sentence scores to " << scoresFilename << "...\n";
+
   // Last word set to end of sentence
   int lastWord = 0;
   // Reset the log-likelihood
-  double logProbability = 0.0;
+  logProbability = 0.0;
   double sentenceLogProbability = 0.0;
   // Reset the word counter
-  wordCounter = 0;
+  int wordCounter = 0;
   // Reset the sentence scores
   sentenceScores.clear();
   
@@ -1117,6 +1097,10 @@ double RnnLMTraining::TestRnnModel(const string &testFile,
         cout << sentenceLogProbability << endl;
         sentenceScores.push_back(sentenceLogProbability);
         sentenceLogProbability = 0.0;
+        // Write the sentence score to a file
+        ostringstream buf;
+        buf << sentenceLogProbability << "\n";
+        scoresFile << buf.str();
       }
     }
   }
@@ -1126,12 +1110,25 @@ double RnnLMTraining::TestRnnModel(const string &testFile,
   }
   
   // Return the total logProbability
-  printf("Log probability: %.2f, number of words: %d (%lu sentences)\n",
-         logProbability, wordCounter, sentenceScores.size());
-  double perplexity =
-  (wordCounter == 0) ? 0 : ExponentiateBase10(-logProbability / (double)wordCounter);
+  cout << "Log probability: " << logProbability
+  << ", number of words " << wordCounter
+  << ", " << sentenceScores.size() << " sentences)\n";
+
+  // Compute the perplexity and entropy
+  perplexity = 0;
+  if (wordCounter > 0) {
+    perplexity = ExponentiateBase10(-logProbability / (double)wordCounter);
+  }
   cout << "PPL net (perplexity without OOV): " << perplexity << endl;
-  return logProbability;
+  entropy = (wordCounter == 0) ? 0 :
+  -logProbability / log10((double)2) / wordCounter;
+
+  // Compute the accuracy
+  accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
+  cout << "Accuracy " << accuracy * 100 << "% on "
+  << sentenceScores.size() << " sentences\n";
+
+  return true;
 }
 
 

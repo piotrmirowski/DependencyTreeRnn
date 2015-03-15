@@ -58,7 +58,8 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
   // Also count the number of words in all the books.
   m_numTrainWords =
   m_corpusVocabulary.ReadVocabulary(m_typeOfDepLabels == 1);
-  
+  printf("Words in train file: %ld\n", m_numTrainWords);
+
   // Filter the vocabulary based on frequency
   // and sort it based on frequency
   m_corpusTrain.FilterSortVocabulary(m_corpusVocabulary);
@@ -70,6 +71,26 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
          m_corpusTrain.NumWords());
   printf("Label vocab size: %d\n",
          m_corpusTrain.NumLabels());
+
+  // Copy the vocabulary to the other corpus
+  m_corpusValidTest.CopyVocabulary(m_corpusTrain);
+
+  // Export the vocabulary
+  m_corpusTrain.ExportVocabulary(m_rnnModelFile + ".vocab.txt");
+
+  // Assign the vocabulary to the model
+  return AssignVocabularyFromCorpora(numClasses);
+}
+
+
+/// <summary>
+/// Before learning the RNN model, we need to learn the vocabulary
+/// from the corpus. Note that the word classes may have been initialized
+/// beforehand using ReadClasses. Computes the unigram distribution
+/// of words from a training file, assuming that the existing vocabulary
+/// is empty.
+/// </summary>
+bool RnnTreeLM::AssignVocabularyFromCorpora(int numClasses) {
 
   // Create an empty vocabulary structure for words
   m_vocab = Vocabulary(numClasses);
@@ -88,7 +109,7 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
     m_vocab.SetWordCount(word, (int)round(count));
   }
   // Note that we do not sort the words by frequency, as they are already sorted
-  
+
   // Assign the words to classes
   m_vocab.AssignWordsToClasses();
 
@@ -104,14 +125,10 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
     // Lookup it up in the vocabulary of labels and add it if needed
     m_labels.AddWordToVocabulary(label);
   }
-  
-  // Copy the vocabulary to the other corpus
-  m_corpusValidTest.CopyVocabulary(m_corpusTrain);
 
   printf("Vocab size: %d\n", GetVocabularySize());
   printf("Unknown tag at: %d\n", m_oov);
   printf("Label vocab size: %d\n", GetLabelSize());
-  printf("Words in train file: %ld\n", m_numTrainWords);
   return true;
 }
 
@@ -217,15 +234,10 @@ bool RnnTreeLM::TrainRnnModel() {
             int targetWord = book.CurrentTokenWordAsTarget();
             double discount = book.CurrentTokenDiscount();
             int targetLabel = book.CurrentTokenLabel();
-            //cout << "token: " << tokenNumber
-            //<< ", context: " << contextWord << "(" << contextLabel << ")"
-            //<< ", target: " << targetWord << "/" << nextContextWord
-            //<< "(" << targetLabel << ") @" << discount << endl;
 
             // Update the feature matrix with the last dependency label
             if (m_typeOfDepLabels == 2) {
               UpdateFeatureLabelVector(contextLabel, m_state);
-              //cout << "UpdatedFeatureLabelVector(" << contextLabel << ")\n";
             }
 
             // Run one step of the RNN to predict word
@@ -241,9 +253,6 @@ bool RnnTreeLM::TrainRnnModel() {
               double condProbaWordGivenClass = m_state.OutputLayer[targetWord];
               double logProbabilityWord =
               log10(condProbaClass * condProbaWordGivenClass);
-              //cout << "class node: " << outputNodeClass
-              //<< " p=" << condProbaClass
-              //<< ", word p=" << condProbaWordGivenClass << "\n";
 
               // Did we see already that word token (at that position)
               // in the sentence?
@@ -253,7 +262,6 @@ bool RnnTreeLM::TrainRnnModel() {
                 // Contribute the log-likelihood to the sentence and corpus
                 trainLogProbability += logProbabilityWord;
                 uniqueWordCounter++;
-                //cout << "Stored logp\n";
               }
               m_wordCounter++;
             }
@@ -262,33 +270,7 @@ bool RnnTreeLM::TrainRnnModel() {
             assert(!(trainLogProbability != trainLogProbability));
 
             // Shift memory needed for BPTT to next time step
-            if (m_numBpttSteps > 0) {
-              // shift memory needed for bptt to next time step
-              for (int a = m_numBpttSteps+m_bpttBlockSize-1; a > 0; a--) {
-                m_bpttVectors.History[a] = m_bpttVectors.History[a-1];
-              }
-              m_bpttVectors.History[0] = contextWord;
-              
-              int sizeHidden = GetHiddenSize();
-              for (int a = m_numBpttSteps+m_bpttBlockSize-1; a > 0; a--) {
-                for (int b = 0; b < sizeHidden; b++) {
-                  m_bpttVectors.HiddenLayer[a * sizeHidden+b] =
-                    m_bpttVectors.HiddenLayer[(a-1) * sizeHidden+b];
-                  m_bpttVectors.HiddenGradient[a * sizeHidden+b] =
-                    m_bpttVectors.HiddenGradient[(a-1) * sizeHidden+b];
-                }
-              }
-              
-              // We do not use an external file with feature vectors;
-              // feature labels are provided in the parse tree itself
-              int sizeFeature = GetFeatureSize();
-              for (int a = m_numBpttSteps+m_bpttBlockSize-1; a>0; a--) {
-                for (int b = 0; b < sizeFeature; b++) {
-                  m_bpttVectors.FeatureLayer[a * sizeFeature+b] =
-                    m_bpttVectors.FeatureLayer[(a-1) * sizeFeature+b];
-                }
-              }
-            }
+            m_bpttVectors.Shift(contextWord);
 
             // Discount the learning rate to handle
             // multiple occurrences of the same word
@@ -319,6 +301,10 @@ bool RnnTreeLM::TrainRnnModel() {
             ok = (book.NextTokenInUnroll() >= 0);
           } // Loop over tokens in the unroll of a sentence
           book.NextUnrollInSentence();
+
+          // Reset the BPTT at every unroll
+          m_bpttVectors.Reset();
+
         } // Loop over unrolls of a sentence
         
         // Verbose
@@ -334,15 +320,10 @@ bool RnnTreeLM::TrainRnnModel() {
               << ",Book," << idxBook
               << ",TRAINent," << entropy
               << ",TRAINppx," << perplexity
-              << ",fraction," << 100 * m_wordCounter/((double)m_numTrainWords)
               << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
           buf << "\n";
           logFile << buf.str();
           cout << buf.str();
-#ifdef USE_HASHTABLES
-          cout << m_weights.DirectTriGram.size() << " trigrams\n";
-          cout << m_weights.DirectBiGram.size() << " bigrams\n";
-#endif
         }
         
         book.NextSentence();
@@ -360,40 +341,27 @@ bool RnnTreeLM::TrainRnnModel() {
         << ",Book,ALL"
         << ",TRAINent," << trainEntropy
         << ",TRAINppx," << trainPerplexity
-        << ",fraction,100"
         << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
     buf << "\n";
     logFile << buf.str();
     cout << buf.str();
     
     // Validation
-    int validWordCounter = 0;
     vector<double> sentenceScores;
-    double validLogProbability =
+    double validLogProbability, validPerplexity, validEntropy, validAccuracy;
     TestRnnModel(m_validationFile,
                  m_featureValidationFile,
-                 validWordCounter,
-                 sentenceScores);
-    double validPerplexity =
-      (validWordCounter == 0) ? 0 :
-      ExponentiateBase10(-validLogProbability / (double)validWordCounter);
-    double validEntropy =
-      (validWordCounter == 0) ? 0 :
-      -validLogProbability / log10((double)2) / validWordCounter;
-    
-    // Compute the validation accuracy
-    double validAccuracy =
-    AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
-    cout << "Accuracy " << validAccuracy * 100 << "% on "
-    << sentenceScores.size() << " sentences\n";
-    
+                 sentenceScores,
+                 validLogProbability,
+                 validPerplexity,
+                 validEntropy,
+                 validAccuracy);
     ostringstream buf2;
     buf2 << "Iter," << m_iteration
          << ",Alpha," << m_learningRate
          << ",VALIDacc," << validAccuracy
          << ",VALIDent," << validEntropy
          << ",VALIDppx," << validPerplexity
-         << ",fraction,100"
          << ",words/sec,0\n";
     logFile << buf2.str();
     cout << buf2.str();
@@ -447,12 +415,24 @@ bool RnnTreeLM::TrainRnnModel() {
 /// <summary>
 /// Test a Recurrent Neural Network model on a test file
 /// </summary>
-double RnnTreeLM::TestRnnModel(const string &testFile,
-                               const string &featureFile,
-                               int &uniqueWordCounter,
-                               vector<double> &sentenceScores) {
+bool RnnTreeLM::TestRnnModel(const string &testFile,
+                             const string &featureFile,
+                             vector<double> &sentenceScores,
+                             double &logProbability,
+                             double &perplexity,
+                             double &entropy,
+                             double &accuracy) {
   cout << "RnnTreeLM::testNet()\n";
   
+  // Scores file
+  string scoresFilename = m_rnnModelFile + ".scores.";
+  size_t sep = testFile.find_last_of("\\/");
+  if (sep != string::npos)
+    scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
+  scoresFilename += ".txt";
+  ofstream scoresFile(scoresFilename);
+  cout << "Writing sentence scores to " << scoresFilename << "...\n";
+
   // We do not use an external file with feature vectors;
   // feature labels are provided in the parse tree itself
   
@@ -461,9 +441,9 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
   ResetAllRnnActivations(m_state);
   
   // Reset the log-likelihood
-  double testLogProbability = 0.0;
+  logProbability = 0.0;
   // Reset the unique word token counter
-  uniqueWordCounter = 0;
+  int uniqueWordCounter = 0;
   int numUnk = 0;
   
   // Since we just set s(1)=0, this will set the state s(t-1) to 0 as well...
@@ -540,7 +520,7 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
               // No: store the log-likelihood of that word
               logProbSentence[tokenNumber] = logProbabilityWord;
               // Contribute the log-likelihood to the sentence and corpus
-              testLogProbability += logProbabilityWord;
+              logProbability += logProbabilityWord;
               sentenceLogProbability += logProbabilityWord;
               uniqueWordCounter++;
               
@@ -598,20 +578,34 @@ double RnnTreeLM::TestRnnModel(const string &testFile,
       logProbSentence.clear();
       // Store the log-probability of the sentence
       sentenceScores.push_back(sentenceLogProbability);
-      
+      //ostringstream buf;
+      //buf << sentenceLogProbability << "\n";
+      //scoresFile << buf.str();
+      scoresFile << sentenceLogProbability << "\n";
+
       book.NextSentence();
     } // Loop over sentences
   } // Loop over books
   
   // Return the total logProbability
-  cout << "Log probability: " << testLogProbability
+  cout << "Log probability: " << logProbability
        << ", number of words " << uniqueWordCounter
        << " (" << numUnk << " <unk>,"
        << " " << sentenceScores.size() << " sentences)\n";
-  double perplexity = 0;
+
+  // Compute the perplexity and entropy
+  perplexity = 0;
   if (uniqueWordCounter > 0) {
-    perplexity = ExponentiateBase10(-testLogProbability / (double)uniqueWordCounter);
+    perplexity = ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
   }
   cout << "PPL net (perplexity without OOV): " << perplexity << endl;
-  return testLogProbability;
+  entropy = (uniqueWordCounter == 0) ? 0 :
+    -logProbability / log10((double)2) / uniqueWordCounter;
+
+  // Compute the accuracy
+  accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
+  cout << "Accuracy " << accuracy * 100 << "% on "
+  << sentenceScores.size() << " sentences\n";
+
+  return true;
 }

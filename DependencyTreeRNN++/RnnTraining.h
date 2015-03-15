@@ -58,6 +58,7 @@
 #include <fstream>
 #include "CorpusWordReader.h"
 #include "RnnLib.h"
+#include "RnnState.h"
 
 
 /// <summary>
@@ -122,10 +123,26 @@ public:
   void SetMinImprovement(double newMinImprovement) {
     m_minLogProbaImprovement = newMinImprovement;
   }
+
+  /**
+   * (Re)set the number of steps of BPTT
+   */
+  void SetNumStepsBPTT(int val) {
+    m_numBpttSteps = val;
+    m_bpttVectors = RnnBptt(GetVocabularySize(), GetHiddenSize(),
+                            GetFeatureSize(),
+                            m_numBpttSteps, m_bpttBlockSize);
+  }
   
-  void SetNumStepsBPTT(int val) { m_numBpttSteps = val; }
-  
-  void SetBPTTBlock(int val) { m_bpttBlockSize = val; }
+  /**
+   * (Re)set the number of steps/words when BPTT is called
+   */
+  void SetBPTTBlock(int val) {
+    m_bpttBlockSize = val;
+    m_bpttVectors = RnnBptt(GetVocabularySize(), GetHiddenSize(),
+                            GetFeatureSize(),
+                            m_numBpttSteps, m_bpttBlockSize);
+  }
   
   void SetDebugMode(bool mode) { m_debugMode = mode; }
   
@@ -170,10 +187,13 @@ public:
   /// <summary>
   /// Main function to test the RNN model
   /// </summary>
-  virtual double TestRnnModel(const std::string &testFile,
-                              const std::string &featureFile,
-                              int &wordCounter,
-                              std::vector<double> &sentenceScores);
+  virtual bool TestRnnModel(const std::string &testFile,
+                            const std::string &featureFile,
+                            std::vector<double> &sentenceScores,
+                            double &logProbability,
+                            double &perplexity,
+                            double &entropy,
+                            double &accuracy);
   
   /// <summary>
   /// Load a file containing the classification labels
