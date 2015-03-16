@@ -173,6 +173,7 @@ bool RnnTreeLM::TrainRnnModel() {
   LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   
   // Log file
+  ostringstream buf;
   string logFilename = m_rnnModelFile + ".log.txt";
   ofstream logFile(logFilename);
   cout << "Starting training tree-dependent LM using list of books "
@@ -314,7 +315,6 @@ bool RnnTreeLM::TrainRnnModel() {
           -trainLogProbability/log10((double)2) / uniqueWordCounter;
           double perplexity =
           ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
-          ostringstream buf;
           buf << "Iter," << m_iteration
               << ",Alpha," << m_learningRate
               << ",Book," << idxBook
@@ -322,10 +322,15 @@ bool RnnTreeLM::TrainRnnModel() {
               << ",TRAINppx," << perplexity
               << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
           buf << "\n";
-          logFile << buf.str();
-          cout << buf.str();
+          logFile << buf.str() << flush;
+          cout << buf.str() << flush;
+          buf.str("");
+          buf.clear();
         }
         
+        // Reset the table of word token probabilities
+        logProbSentence.clear();
+
         book.NextSentence();
       } // loop over sentences for one epoch
     } // loop over books for one epoch
@@ -335,7 +340,6 @@ bool RnnTreeLM::TrainRnnModel() {
     double trainPerplexity =
     ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
     clock_t now = clock();
-    ostringstream buf;
     buf << "Iter," << m_iteration
         << ",Alpha," << m_learningRate
         << ",Book,ALL"
@@ -343,9 +347,11 @@ bool RnnTreeLM::TrainRnnModel() {
         << ",TRAINppx," << trainPerplexity
         << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
     buf << "\n";
-    logFile << buf.str();
-    cout << buf.str();
-    
+    logFile << buf.str() << flush;
+    cout << buf.str() << flush;
+    buf.str("");
+    buf.clear();
+
     // Validation
     vector<double> sentenceScores;
     double validLogProbability, validPerplexity, validEntropy, validAccuracy;
@@ -356,16 +362,17 @@ bool RnnTreeLM::TrainRnnModel() {
                  validPerplexity,
                  validEntropy,
                  validAccuracy);
-    ostringstream buf2;
-    buf2 << "Iter," << m_iteration
-         << ",Alpha," << m_learningRate
-         << ",VALIDacc," << validAccuracy
-         << ",VALIDent," << validEntropy
-         << ",VALIDppx," << validPerplexity
-         << ",words/sec,0\n";
-    logFile << buf2.str();
-    cout << buf2.str();
-    
+    buf << "Iter," << m_iteration
+        << ",Alpha," << m_learningRate
+        << ",VALIDacc," << validAccuracy
+        << ",VALIDent," << validEntropy
+        << ",VALIDppx," << validPerplexity
+        << ",words/sec,0\n";
+    logFile << buf.str() << flush;
+    cout << buf.str() << flush;
+    buf.str("");
+    buf.clear();
+
     // Reset the position in the training file
     m_wordCounter = 0;
     m_currentPosTrainFile = 0;
@@ -404,7 +411,7 @@ bool RnnTreeLM::TrainRnnModel() {
       m_iteration++;
       SaveRnnModelToFile();
       SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-      printf("Saved the model\n");
+      cout << "Saved the model\n";
     }
   }
   
@@ -578,34 +585,46 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
       logProbSentence.clear();
       // Store the log-probability of the sentence
       sentenceScores.push_back(sentenceLogProbability);
-      //ostringstream buf;
-      //buf << sentenceLogProbability << "\n";
-      //scoresFile << buf.str();
       scoresFile << sentenceLogProbability << "\n";
 
       book.NextSentence();
     } // Loop over sentences
   } // Loop over books
   
+  // Log file
+  string logFilename = m_rnnModelFile + ".test.log.txt";
+  ofstream logFile(logFilename);
+
   // Return the total logProbability
-  cout << "Log probability: " << logProbability
-       << ", number of words " << uniqueWordCounter
-       << " (" << numUnk << " <unk>,"
-       << " " << sentenceScores.size() << " sentences)\n";
+  ostringstream buf;
+  buf << "Log probability: " << logProbability
+      << ", number of words " << uniqueWordCounter
+      << " (" << numUnk << " <unk>,"
+      << " " << sentenceScores.size() << " sentences)\n";
+  cout << buf.str() << flush;
+  logFile << buf.str() << flush;
+  buf.str("");
+  buf.clear();
 
   // Compute the perplexity and entropy
-  perplexity = 0;
-  if (uniqueWordCounter > 0) {
-    perplexity = ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
-  }
-  cout << "PPL net (perplexity without OOV): " << perplexity << endl;
+  perplexity = (uniqueWordCounter == 0) ? 0 :
+    ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
   entropy = (uniqueWordCounter == 0) ? 0 :
     -logProbability / log10((double)2) / uniqueWordCounter;
+  buf << "PPL net (perplexity without OOV): " << perplexity << endl;
+  cout << buf.str() << flush;
+  logFile << buf.str() << flush;
+  buf.str("");
+  buf.clear();
 
   // Compute the accuracy
   accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
-  cout << "Accuracy " << accuracy * 100 << "% on "
+  buf << "Accuracy " << accuracy * 100 << "% on "
   << sentenceScores.size() << " sentences\n";
+  cout << buf.str() << flush;
+  logFile << buf.str() << flush;
+  buf.str("");
+  buf.clear();
 
   return true;
 }
