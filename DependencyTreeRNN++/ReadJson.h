@@ -10,6 +10,13 @@
 
 using namespace std;
 
+struct JsonToken {
+  int pos;
+  string word;
+  double discount;
+  string label;
+};
+
 
 class ReadJson {
 public:
@@ -29,10 +36,39 @@ public:
    * Destructor
    */
   ~ReadJson() { }
-  
-  
+
 protected:
   
+
+  /**
+   * Trim a word
+   */
+  string const Trim(const string &word) const;
+
+  /**
+   * Parse a token
+   */
+  size_t const ParseToken(const string &json_element,
+                          JsonToken &tok) const;
+
+  /**
+   * Parse an unroll
+   */
+  size_t const ParseUnroll(const string &json_unrolls,
+                           vector<JsonToken> &unroll) const;
+
+  /**
+   * Parse a sentence
+   */
+  size_t const ParseSentence(const string &json_sentences,
+                             vector<vector<JsonToken>> &sentence) const;
+
+  /**
+   * Parse a book
+   */
+  size_t const ParseBook(const string &json_book,
+                         vector<vector<vector<JsonToken>>> &book) const;
+
   /**
    * Parse a token in the JSON parse tree to fill token data
    */

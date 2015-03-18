@@ -333,6 +333,9 @@ bool RnnTreeLM::TrainRnnModel() {
 
         book.NextSentence();
       } // loop over sentences for one epoch
+
+      // Clear memory
+      book.Burn();
     } // loop over books for one epoch
     
     // Verbose the iteration
@@ -378,16 +381,30 @@ bool RnnTreeLM::TrainRnnModel() {
     m_currentPosTrainFile = 0;
     trainLogProbability = 0;
     
+    buf << "Check logProbability increase\n";
+    logFile << buf.str() << flush;
+    cout << buf.str() << flush;
+    buf.str("");
+    buf.clear();
     if (validLogProbability < lastValidLogProbability) {
-      // Restore the weights and the state from the backup
-      m_weights = m_weightsBackup;
-      m_state = m_stateBackup;
-      cout << "Restored the weights from previous iteration\n";
+      // Restore the weights and the state from the backup (file)
+      //m_weights = m_weightsBackup;
+      //m_state = m_stateBackup;
+      LoadRnnModelFromFile();
+      buf << "Restored the weights from previous iteration\n";
+      logFile << buf.str() << flush;
+      cout << buf.str() << flush;
+      buf.str("");
+      buf.clear();
     } else {
       // Backup the weights and the state
-      m_weightsBackup = m_weights;
-      m_stateBackup = m_state;
-      cout << "Save this model\n";
+      //m_weightsBackup = m_weights;
+      //m_stateBackup = m_state;
+      buf << "We will save this model...\n";
+      logFile << buf.str() << flush;
+      cout << buf.str() << flush;
+      buf.str("");
+      buf.clear();
     }
     
     // Shall we start reducing the learning rate?

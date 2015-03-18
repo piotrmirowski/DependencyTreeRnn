@@ -118,6 +118,11 @@ public:
   void Load(FILE *fi);
 
   /**
+   * Clear the weights, before loading a new model, to save on memory
+   */
+  void Clear();
+
+  /**
    * Save the weights matrices to a file
    */
   void Save(FILE *fo);

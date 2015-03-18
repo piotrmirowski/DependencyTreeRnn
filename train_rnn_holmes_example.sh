@@ -38,7 +38,6 @@ echo "RNN model will be stored in $FILE_MODEL..."
 # Train the dependency-parsing model
 RnnDependencyTree \
   -rnnlm $FILE_MODEL \
-  -vocab $FILE_VOCAB \
   -train $LIST_TRAIN \
   -valid $LIST_VALID \
   -sentence-labels $FILE_SENTENCE_LABELS \
@@ -52,4 +51,5 @@ RnnDependencyTree \
   -bptt-block 1 \
   -class $RNN_CLASSES \
   -feature-gamma $FEATURE_GAMMA \
-  -debug false
+  -debug false \
+  -vocab $FILE_VOCAB

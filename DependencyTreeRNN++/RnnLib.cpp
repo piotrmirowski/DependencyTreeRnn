@@ -163,6 +163,7 @@ bool RnnLM::InitializeRnnModel(int sizeVocabulary,
                      sizeDirectConnection, orderDirectConnection);
 
   // Initialize the weights of the neural network
+  m_weights.Clear();
   m_weights = RnnWeights(sizeVocabulary, sizeHidden, sizeFeature,
                          sizeClasses, sizeCompress,
                          sizeDirectConnection);

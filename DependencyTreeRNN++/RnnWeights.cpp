@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <assert.h>
 #include "Utils.h"
 #include "RnnWeights.h"
@@ -79,6 +80,29 @@ m_sizeOutput(sizeVocabulary + sizeClasses) {
 
 
 /**
+ * Clear all the weights (before loading a new copy), to save memory
+ */
+void RnnWeights::Clear() {
+  Input2Hidden.clear();
+  Recurrent2Hidden.clear();
+  Features2Hidden.clear();
+  Features2Output.clear();
+  if (m_sizeCompress == 0) {
+    Hidden2Output.clear();
+  } else {
+    Hidden2Output.clear();
+    Compress2Output.clear();
+  }
+#ifdef USE_HASHTABLES
+  DirectBiGram.clear();
+  DirectTriGram.clear();
+#else
+  DirectNGram.clear();
+#endif
+}
+
+
+/**
  * Load the weights matrices from a file
  */
 void RnnWeights::Load(FILE *fi) {
@@ -106,7 +130,6 @@ void RnnWeights::Load(FILE *fi) {
     ReadBinaryVector(fi, m_sizeDirectConnection, DirectNGram);
 #endif
   }
-  Debug();
 } // void Load()
 
 
@@ -114,18 +137,36 @@ void RnnWeights::Load(FILE *fi) {
  * Save the weights matrices to a file
  */
 void RnnWeights::Save(FILE *fo) {
+  std::ostringstream buf;
+  std::string logFilename = "log_saving.txt";
+  std::ofstream logFile(logFilename);
   // Save the weights U: input -> hidden (i.e., the word embeddings)
-  printf("Saving %dx%d input->hidden weights...\n", m_sizeHidden, m_sizeInput);
+  buf << "Saving " << m_sizeHidden << "x" << m_sizeInput
+  << " input->hidden weights...\n";
+  logFile << buf.str() << std::flush;
+  std::cout << buf.str() << std::flush;
+  buf.str(""); buf.clear();
   SaveBinaryMatrix(fo, m_sizeInput, m_sizeHidden, Input2Hidden);
   // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
-  printf("Saving %dx%d recurrent hidden->hidden weights...\n",
-         m_sizeHidden, m_sizeHidden);
+  buf << "Saving " << m_sizeHidden << "x" << m_sizeHidden
+  << " recurrent hidden->hidden weights...\n";
+  logFile << buf.str() << std::flush;
+  std::cout << buf.str() << std::flush;
+  buf.str(""); buf.clear();
   SaveBinaryMatrix(fo, m_sizeHidden, m_sizeHidden, Recurrent2Hidden);
   // Save the weights feature -> hidden
-  printf("Saving %dx%d feature->hidden weights...\n", m_sizeHidden, m_sizeFeature);
+  buf << "Saving " << m_sizeHidden << "x" << m_sizeFeature
+  << " feature->hidden weights...\n";
+  logFile << buf.str() << std::flush;
+  std::cout << buf.str() << std::flush;
+  buf.str(""); buf.clear();
   SaveBinaryMatrix(fo, m_sizeFeature, m_sizeHidden, Features2Hidden);
   // Save the weights G: feature -> output
-  printf("Saving %dx%d feature->output weights...\n", m_sizeOutput, m_sizeFeature);
+  buf << "Saving " << m_sizeOutput << "x" << m_sizeFeature
+  << " feature->output weights...\n";
+  logFile << buf.str() << std::flush;
+  std::cout << buf.str() << std::flush;
+  buf.str(""); buf.clear();
   SaveBinaryMatrix(fo, m_sizeFeature, m_sizeOutput, Features2Output);
   // Save the weights hidden -> compress and compress -> output
   // or simply the weights V: hidden -> output
@@ -135,12 +176,19 @@ void RnnWeights::Save(FILE *fo) {
     printf("Saving %dx%d compress->output weights...\n", m_sizeCompress, m_sizeOutput);
     SaveBinaryMatrix(fo, m_sizeCompress, m_sizeOutput, Compress2Output);
   } else {
-    printf("Saving %dx%d hidden->output weights...\n", m_sizeOutput, m_sizeHidden);
+    buf << "Saving " << m_sizeOutput << "x" << m_sizeHidden
+    << " hidden->output weights...\n";
+    logFile << buf.str() << std::flush;
+    std::cout << buf.str() << std::flush;
+    buf.str(""); buf.clear();
     SaveBinaryMatrix(fo, m_sizeHidden, m_sizeOutput, Hidden2Output);
   }
   if (m_sizeDirectConnection > 0) {
     // Save the direct connections
-    printf("Saving %lld n-gram connections...\n", m_sizeDirectConnection);
+    buf << "Saving " << m_sizeDirectConnection << " n-gram connections...\n";
+    logFile << buf.str() << std::flush;
+    std::cout << buf.str() << std::flush;
+    buf.str(""); buf.clear();
 #ifdef USE_HASHTABLES
 #else
     for (long long aa = 0; aa < m_sizeDirectConnection; aa++) {
@@ -149,7 +197,6 @@ void RnnWeights::Save(FILE *fo) {
     }
 #endif
   }
-  Debug();
 } // void Save()
 
 
