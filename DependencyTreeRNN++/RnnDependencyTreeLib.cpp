@@ -380,7 +380,8 @@ bool RnnTreeLM::TrainRnnModel() {
     m_wordCounter = 0;
     m_currentPosTrainFile = 0;
     trainLogProbability = 0;
-    
+
+/*    
     buf << "Check logProbability increase\n";
     logFile << buf.str() << flush;
     cout << buf.str() << flush;
@@ -406,6 +407,7 @@ bool RnnTreeLM::TrainRnnModel() {
       buf.str("");
       buf.clear();
     }
+*/
     
     // Shall we start reducing the learning rate?
     if (validLogProbability * m_minLogProbaImprovement < lastValidLogProbability) {
