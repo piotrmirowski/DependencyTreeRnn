@@ -428,7 +428,7 @@ bool RnnTreeLM::TrainRnnModel() {
         m_learningRate /= 1.5; //2;
       }
       lastValidLogProbability = validLogProbability;
-      validAccuracy = lastValidAccuracy;
+      lastValidAccuracy = validAccuracy;
       validLogProbability = 0;
       m_iteration++;
       SaveRnnModelToFile();
