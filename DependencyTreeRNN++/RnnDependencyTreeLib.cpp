@@ -164,6 +164,7 @@ void RnnTreeLM::UpdateFeatureLabelVector(int label, RnnState &state) const {
 bool RnnTreeLM::TrainRnnModel() {
   // Reset the log-likelihood of the last iteration to ginourmous value
   double lastValidLogProbability = -1E37;
+  double lastValidAccuracy = 0;
   // Word counter, saved at the end of last training session
   m_wordCounter = m_currentPosTrainFile;
   // Keep track of the initial learning rate
@@ -410,7 +411,8 @@ bool RnnTreeLM::TrainRnnModel() {
 */
     
     // Shall we start reducing the learning rate?
-    if (validLogProbability * m_minLogProbaImprovement < lastValidLogProbability) {
+    //if (validLogProbability * m_minLogProbaImprovement < lastValidLogProbability) {
+    if (validAccuracy < lastValidAccuracy) {
       if (!m_doStartReducingLearningRate) {
         m_doStartReducingLearningRate = true;
       } else {
@@ -423,9 +425,10 @@ bool RnnTreeLM::TrainRnnModel() {
     
     if (loopEpochs) {
       if (m_doStartReducingLearningRate) {
-        m_learningRate /= 2;
+        m_learningRate /= 1.5; //2;
       }
       lastValidLogProbability = validLogProbability;
+      validAccuracy = lastValidAccuracy;
       validLogProbability = 0;
       m_iteration++;
       SaveRnnModelToFile();

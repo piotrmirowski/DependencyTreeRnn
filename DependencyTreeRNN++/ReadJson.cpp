@@ -200,13 +200,20 @@ size_t const ReadJson::ParseBook(const string &json_book,
   size_t end_book = json_book.find("]]]]", 0);
   if (end_book == string::npos) {
     end_book = json_book.find("]]], []]", 0);
-    assert(end_book != string::npos);
+    if (end_book == string::npos) {
+      end_book = json_book.find("]]], [], []]", 0);
+      assert(end_book != string::npos);
+    }
   }
 
   assert(json_book[0] == '[');
   size_t begin = 1;
-  if ((json_book[1] == '[') && (json_book[2] == ']') &&
-      (json_book[3] == ',') && (json_book[4] == ' ')) {
+  if ((json_book[begin] == '[') && (json_book[begin+1] == ']') &&
+      (json_book[begin+2] == ',') && (json_book[begin+3] == ' ')) {
+    begin += 4;
+  }
+  if ((json_book[begin] == '[') && (json_book[begin+1] == ']') &&
+      (json_book[begin+2] == ',') && (json_book[begin+3] == ' ')) {
     begin += 4;
   }
   assert(json_book[begin] == '[');
