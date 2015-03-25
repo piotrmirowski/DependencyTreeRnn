@@ -162,9 +162,11 @@ void RnnTreeLM::UpdateFeatureLabelVector(int label, RnnState &state) const {
 /// using the JSON trees of dependency parse
 /// </summary>
 bool RnnTreeLM::TrainRnnModel() {
-  // Reset the log-likelihood of the last iteration to ginourmous value
+  // Reset the log-likelihood to ginourmous value
   double lastValidLogProbability = -1E37;
   double lastValidAccuracy = 0;
+  double bestValidLogProbability = -1E37;
+  double bestValidAccuracy = 0;
   // Word counter, saved at the end of last training session
   m_wordCounter = m_currentPosTrainFile;
   // Keep track of the initial learning rate
@@ -382,58 +384,33 @@ bool RnnTreeLM::TrainRnnModel() {
     m_currentPosTrainFile = 0;
     trainLogProbability = 0;
 
-/*    
-    buf << "Check logProbability increase\n";
-    logFile << buf.str() << flush;
-    cout << buf.str() << flush;
-    buf.str("");
-    buf.clear();
-    if (validLogProbability < lastValidLogProbability) {
-      // Restore the weights and the state from the backup (file)
-      //m_weights = m_weightsBackup;
-      //m_state = m_stateBackup;
-      LoadRnnModelFromFile();
-      buf << "Restored the weights from previous iteration\n";
-      logFile << buf.str() << flush;
-      cout << buf.str() << flush;
-      buf.str("");
-      buf.clear();
-    } else {
-      // Backup the weights and the state
-      //m_weightsBackup = m_weights;
-      //m_stateBackup = m_state;
-      buf << "We will save this model...\n";
-      logFile << buf.str() << flush;
-      cout << buf.str() << flush;
-      buf.str("");
-      buf.clear();
-    }
-*/
-    
     // Shall we start reducing the learning rate?
-    //if (validLogProbability * m_minLogProbaImprovement < lastValidLogProbability) {
-    if (validAccuracy < lastValidAccuracy) {
-      if (!m_doStartReducingLearningRate) {
-        m_doStartReducingLearningRate = true;
-      } else {
-        loopEpochs = false;
-        SaveRnnModelToFile();
-        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-        break;
-      }
+    if ((validAccuracy * m_minLogProbaImprovement < lastValidAccuracy)
+        && (m_iteration > 4)) {
+      m_doStartReducingLearningRate = true;
     }
-    
+    if (m_doStartReducingLearningRate) {
+      m_learningRate /= 1.5;
+    }
+    // We need to stop at some point!
+    if (m_learningRate < 0.0001) {
+      loopEpochs = false;
+    }
+
     if (loopEpochs) {
-      if (m_doStartReducingLearningRate) {
-        m_learningRate /= 1.5; //2;
-      }
+      // Store last value of accuracy and log-probability
       lastValidLogProbability = validLogProbability;
       lastValidAccuracy = validAccuracy;
       validLogProbability = 0;
       m_iteration++;
-      SaveRnnModelToFile();
-      SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-      cout << "Saved the model\n";
+      // Save the best model
+      if (validAccuracy > bestValidAccuracy) {
+        SaveRnnModelToFile();
+        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
+        cout << "Saved the best model so far\n";
+        bestValidAccuracy = validAccuracy;
+        bestValidLogProbability = validLogProbability;
+      }
     }
   }
   
