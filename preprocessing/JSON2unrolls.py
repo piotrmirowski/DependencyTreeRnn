@@ -104,6 +104,7 @@ if len(sys.argv) == 5 and sys.argv[4] == "TOKENS":
     threshold = float("inf")
     
 
+
 for filename in glob.glob(sys.argv[1]+ "/*"):
     allSentences = []
 
