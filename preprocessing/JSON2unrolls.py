@@ -135,7 +135,7 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
     
     if tokensOnly:
         with open(sys.argv[2] + "/" + os.path.basename(filename) + ".tokens.txt", "wb") as out:
-            out.write("\n".join(allSentences) + "\n")
+            out.write(("\n".join(allSentences)).encode('utf-8') + "\n")
     else:
         with open(sys.argv[2] + "/" + os.path.basename(filename) + ".unrolls.json", "wb") as out:
             json.dump(allSentences, out)
