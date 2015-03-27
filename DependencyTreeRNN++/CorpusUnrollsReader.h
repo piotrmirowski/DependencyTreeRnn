@@ -274,6 +274,16 @@ public:
   void CopyVocabulary(CorpusUnrolls &other);
 
   /**
+   * Export the vocabulary to a text file
+   */
+  void ExportVocabulary(const std::string &filename);
+
+  /**
+   * Import the vocabulary from a text file
+   */
+  void ImportVocabulary(const std::string &filename);
+
+  /**
    * Add a book
    */
   void AddBookFilename(const std::string &filename) {

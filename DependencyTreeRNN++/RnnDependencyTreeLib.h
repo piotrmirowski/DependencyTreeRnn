@@ -50,6 +50,15 @@ public:
   bool LearnVocabularyFromTrainFile(int numClasses);
   
   /**
+   * Import the vocabulary from a text file.
+   */
+  void ImportVocabularyFromFile(std::string &filename, int numClasses) {
+    m_corpusTrain.ImportVocabulary(filename);
+    m_corpusValidTest.ImportVocabulary(filename);
+    AssignVocabularyFromCorpora(numClasses);
+  }
+
+  /**
    * Return the number of labels (features) used in the dependency parsing.
    */
   int GetLabelSize() const { return m_labels.GetVocabularySize(); }
@@ -98,13 +107,16 @@ public:
    * Function that tests the RNN on JSON trees
    * of dependency parse
    */
-  double TestRnnModel(const std::string &testFile,
-                      const std::string &featureFile,
-                      int &wordCounter,
-                      std::vector<double> &sentenceScores);
-  
+  bool TestRnnModel(const std::string &testFile,
+                    const std::string &featureFile,
+                    std::vector<double> &sentenceScores,
+                    double &logProbability,
+                    double &perplexity,
+                    double &entropy,
+                    double &accuracy);
+
 protected:
-  
+
   // Corpora
   CorpusUnrolls m_corpusVocabulary;
   CorpusUnrolls m_corpusTrain;
@@ -127,6 +139,10 @@ protected:
   
   // Update the vector of feature labels
   void UpdateFeatureLabelVector(int label, RnnState &state) const;
+
+  // Assign the vocabulary from the corpora to the model,
+  // and compute the word classes.
+  bool AssignVocabularyFromCorpora(int numClasses);
 };
 
 #endif /* defined(__DependencyTreeRNN____RnnDependencyTreeLib__) */

@@ -5,13 +5,16 @@
 PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 PATH_JSON_PIOTR_MAC="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 
+# Define the minimum number of word occurrences as 2 and use existing vocabulary file
+MIN_WORD_OCCURRENCE=2
+
 DEP_LABELS=2
-MIN_WORD_OCCURRENCE=5
 RNN_HIDDENS=100
 RNN_CLASSES=100
 NGRAM_SIZE_MB=200
 NGRAM_ORDER=3
-BPTT_ORDER=4
+BPTT_ORDER=5
+FEATURE_GAMMA=0.5
 
 
 # Automatic path generation
@@ -20,6 +23,7 @@ PATH_MODELS="./models"
 LIST_VALID=$PATH_DATA"/valid.txt"
 LIST_TRAIN=$PATH_DATA"/train_small.txt"
 FILE_SENTENCE_LABELS=$PATH_DATA"/valid.labels"
+FILE_VOCAB=$PATH_DATA"/vocab_mw"$MIN_WORD_OCCURRENCE"_small.txt"
 FILE_MODEL=$PATH_MODELS"/GutenbergHolmes_p"$DEP_LABELS
 FILE_MODEL=$FILE_MODEL"_mw"$MIN_WORD_OCCURRENCE
 FILE_MODEL=$FILE_MODEL"_h"$RNN_HIDDENS
@@ -27,7 +31,8 @@ FILE_MODEL=$FILE_MODEL"_c"$RNN_CLASSES
 FILE_MODEL=$FILE_MODEL"_m"$NGRAM_SIZE_MB
 FILE_MODEL=$FILE_MODEL"_d"$NGRAM_ORDER
 FILE_MODEL=$FILE_MODEL"_b"$BPTT_ORDER
-FILE_MODEL=$FILE_MODEL".model"
+FILE_MODEL=$FILE_MODEL"_g"$FEATURE_GAMMA
+FILE_MODEL=$FILE_MODEL"_small.model"
 echo "RNN model will be stored in $FILE_MODEL..."
 
 # Train the dependency-parsing model
@@ -43,5 +48,8 @@ RnnDependencyTree \
   -direct $NGRAM_SIZE_MB \
   -direct-order $NGRAM_ORDER \
   -bptt $BPTT_ORDER \
+  -bptt-block 1 \
   -class $RNN_CLASSES \
-  -debug true
+  -feature-gamma $FEATURE_GAMMA \
+  -debug false
+#  -vocab $FILE_VOCAB \

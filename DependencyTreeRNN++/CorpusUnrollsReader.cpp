@@ -1,11 +1,18 @@
 // Copyright (c) 2014 Piotr Mirowski. All rights reserved.
 //                    piotr.mirowski@computer.org
 
+#include <stdio.h>
 #include <climits>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <assert.h>
 #include "CorpusUnrollsReader.h"
 #include "ReadJson.h"
+
+using namespace std;
 
 /**
  * Add a token to the book
@@ -186,8 +193,7 @@ void CorpusUnrolls::FilterSortVocabulary(CorpusUnrolls &other) {
   vocabularyReverse.clear();
   wordCountsDiscounted.clear();
   _vocabSizeWords = 0;
-  
-  
+
   // Now we can set the number of </s> tokens to 0
   // (it never happens, because of the tree parsing)
   filteredWords[0].second = 0.0;
@@ -208,17 +214,19 @@ void CorpusUnrolls::FilterSortVocabulary(CorpusUnrolls &other) {
  */
 void CorpusUnrolls::CopyVocabulary(CorpusUnrolls &other) {
   
-  // Copy the labels as they are
-  for (int k = 0; k < other.NumLabels(); k++) {
-    InsertLabel(other.labelsReverse[k]);
-  }
-  
-  // Completely clear the corpus word vocabulary
-  // (not the labels)
+  // Completely clear the corpus word vocabulary and labels
+  labels.clear();
+  labelsReverse.clear();
   vocabulary.clear();
   vocabularyReverse.clear();
   wordCountsDiscounted.clear();
   _vocabSizeWords = 0;
+  _vocabSizeLabels = 0;
+
+  // Copy the labels as they are
+  for (int k = 0; k < other.NumLabels(); k++) {
+    InsertLabel(other.labelsReverse[k]);
+  }
   
   // Insert the words from the other corpus into the vocabulary
   for (int k = 0; k < other.NumWords(); k++) {
@@ -226,8 +234,97 @@ void CorpusUnrolls::CopyVocabulary(CorpusUnrolls &other) {
     double wordFreq = other.wordCountsDiscounted[k];
     InsertWord(word, wordFreq);
   }
+
   // Note the OOV tag
   _oov = vocabulary["<unk>"];
+}
+
+
+/**
+ * Export the vocabulary to a text file
+ */
+void CorpusUnrolls::ExportVocabulary(const string &filename) {
+  // Write the header
+  ofstream vocabFile(filename);
+  vocabFile << NumWords() << "\t" << NumLabels() << "\n";
+  // Write the labels
+  for (int k = 0; k < NumLabels(); k++) {
+    vocabFile << k << "\t" << labelsReverse[k] << "\n";
+  }
+  // Write the words and their discount factors
+  for (int k = 0; k < NumWords(); k++) {
+    vocabFile << k << "\t" << vocabularyReverse[k]
+    << "\t" << wordCountsDiscounted[k] << "\n";
+  }
+  vocabFile.close();
+}
+
+
+/**
+ * Import the vocabulary from a text file
+ */
+void CorpusUnrolls::ImportVocabulary(const string &filename) {
+
+  // Read the header
+  ifstream vocabFile(filename);
+  cout << "Reading vocabulary file " << filename << endl;
+  assert(vocabFile.is_open());
+
+  // Completely clear the corpus word vocabulary and labels
+  labels.clear();
+  labelsReverse.clear();
+  vocabulary.clear();
+  vocabularyReverse.clear();
+  wordCountsDiscounted.clear();
+  _vocabSizeWords = 0;
+  _vocabSizeLabels = 0;
+
+  // Read the header line
+  string line;
+  getline(vocabFile, line);
+  stringstream lineStream(line);
+  string strNumWords;
+  string strNumLabels;
+  getline(lineStream, strNumWords, '\t');
+  getline(lineStream, strNumLabels);
+  int numWords = stoi(strNumWords);
+  int numLabels = stoi(strNumLabels);
+  cout << "Vocabulary file contains " << numWords << " words and "
+  << numLabels << " labels\n";
+
+  // Read the labels one by one
+  for (int k = 0; k < numLabels; k++) {
+    getline(vocabFile, line);
+    stringstream lineStream(line);
+    string strIdx;
+    string label;
+    getline(lineStream, strIdx, '\t');
+    getline(lineStream, label);
+    InsertLabel(label);
+  }
+
+  // Read the words one by one
+  for (int k = 0; k < numWords; k++) {
+    getline(vocabFile, line);
+    stringstream lineStream(line);
+    string strIdx;
+    string word;
+    string strWordFreq;
+    getline(lineStream, strIdx, '\t');
+    getline(lineStream, word, '\t');
+    getline(lineStream, strWordFreq);
+    double wordFreq = stof(strWordFreq);
+    InsertWord(word, wordFreq);
+  }
+
+  vocabFile.close();
+
+  // Note the OOV tag
+  _oov = vocabulary["<unk>"];
+
+  printf("Vocab size: %d\n", NumWords());
+  printf("Unknown tag at: %d\n", _oov);
+  printf("Label vocab size: %d\n", NumLabels());
 }
 
 

@@ -53,6 +53,7 @@
 #define DependencyTreeRNN___RnnState_h
 
 #include <vector>
+#include <algorithm>
 
 
 /**
@@ -178,36 +179,102 @@ protected:
 
 class RnnBptt {
 public:
+
   /**
    * Constructor
    */
   RnnBptt(int sizeVocabulary, int sizeHidden, int sizeFeature,
           int numBpttSteps, int bpttBlockSize)
-  : m_numBpttSteps(numBpttSteps), m_bpttBlockSize(bpttBlockSize) {
-    int sizeInput = sizeVocabulary;
-    History.assign(m_numBpttSteps + m_bpttBlockSize + 10, -1);
-    HiddenLayer.assign((m_numBpttSteps + m_bpttBlockSize + 1) * sizeHidden, 0);
-    HiddenGradient.assign((m_numBpttSteps + m_bpttBlockSize + 1) * sizeHidden, 0);
-    FeatureLayer.assign((m_numBpttSteps + m_bpttBlockSize + 2) * sizeFeature, 0);
-    FeatureGradient.assign((m_numBpttSteps + m_bpttBlockSize + 2) * sizeFeature, 0);
-    WeightsInput2Hidden.assign(sizeInput * sizeHidden, 0);
+  : m_bpttSteps(numBpttSteps), m_bpttBlock(bpttBlockSize),
+  m_sizeHidden(sizeHidden), m_sizeFeature(sizeFeature),
+  m_steps(0) {
+    Reset();
+    WeightsInput2Hidden.assign(sizeVocabulary * sizeHidden, 0);
     WeightsRecurrent2Hidden.assign(sizeHidden * sizeHidden, 0);
     WeightsFeature2Hidden.assign(sizeFeature * sizeHidden, 0);
   }
 
+
+  /**
+   * Number of BPTT steps that can be considered
+   */
+  int NumSteps() { return m_steps; }
+
+
+  /**
+   * Reset the BPTT memory
+   */
+  void Reset() {
+    m_steps = 0;
+    History.assign(m_bpttSteps + m_bpttBlock + 10, -1);
+    HiddenLayer.assign((m_bpttSteps + m_bpttBlock + 1) * m_sizeHidden, 0);
+    HiddenGradient.assign((m_bpttSteps + m_bpttBlock + 1) * m_sizeHidden, 0);
+    FeatureLayer.assign((m_bpttSteps + m_bpttBlock + 2) * m_sizeFeature, 0);
+    FeatureGradient.assign((m_bpttSteps + m_bpttBlock + 2) * m_sizeFeature, 0);
+  }
+
+
+  /**
+   * Shift the BPTT memory by one
+   */
+  void Shift(int lastWord) {
+    // Shift memory needed for BPTT to next time step
+    if (m_bpttSteps > 0) {
+      // shift memory needed for bptt to next time step
+      for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
+        History[a] = History[a - 1];
+      }
+      History[0] = lastWord;
+
+      for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
+        for (int b = 0; b < m_sizeHidden; b++) {
+          HiddenLayer[a * m_sizeHidden + b] =
+          HiddenLayer[(a - 1) * m_sizeHidden + b];
+          HiddenGradient[a * m_sizeHidden + b] =
+          HiddenGradient[(a - 1) * m_sizeHidden + b];
+        }
+      }
+
+      for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
+        for (int b = 0; b < m_sizeFeature; b++) {
+          FeatureLayer[a * m_sizeFeature+b] =
+          FeatureLayer[(a - 1) * m_sizeFeature+b];
+        }
+      }
+    }
+    // Keep track of the number of that can be considered for BPTT
+    m_steps++;
+    m_steps = std::min(m_steps, m_bpttSteps + m_bpttBlock);
+  }
+
+
+  // Word history
   std::vector<int> History;
+  // History of hidden layer inputs
   std::vector<double> HiddenLayer;
+  // History of gradients to the hidden layer
   std::vector<double> HiddenGradient;
+  // History of feature inputs
   std::vector<double> FeatureLayer;
+  // History of gradients to the feature layer
   std::vector<double> FeatureGradient;
+  // Gradients to the weights, to be added to the SGD gradients
   std::vector<double> WeightsInput2Hidden;
   std::vector<double> WeightsRecurrent2Hidden;
   std::vector<double> WeightsFeature2Hidden;
 
 
 protected:
-  int m_numBpttSteps;
-  int m_bpttBlockSize;
+  // Number of steps gradients are back-propagated through time
+  int m_bpttSteps;
+  // How many steps (words) do we wait between consecutive BPTT?
+  int m_bpttBlock;
+  // How many steps have been stored since the last reset?
+  int m_steps;
+  // Number of hidden nodes
+  int m_sizeHidden;
+  // Number of features
+  int m_sizeFeature;
 };
 
 #endif

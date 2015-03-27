@@ -68,8 +68,17 @@
 using namespace std;
 
 
-int main(int argc, char *argv[])
-{
+bool checkFile(string filename, string msg) {
+  ifstream checkStream(filename);
+  if (!checkStream) {
+    cout << "ERROR: did not find " << msg << " file " << filename << "\n";
+    return false;
+  }
+  return true;
+}
+
+
+int main(int argc, char *argv[]) {
   // Command line arguments
   CommandLineParser parser;
   parser.Register("debug", "bool",
@@ -86,16 +95,18 @@ int main(int argc, char *argv[])
                   "Path to the book JSON files", "./");
   parser.Register("rnnlm", "string",
                   "RNN language model file to use (save in training / read in test)");
+  parser.Register("vocab", "string",
+                  "File with vocabulary (used by word dependency-based RNN)");
+  parser.Register("feature-labels-type", "int",
+                  "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
+  parser.Register("feature-gamma", "double",
+                  "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
   parser.Register("features", "string",
                   "Potentially ginouromous auxiliary feature file for training/test data, with one vector per training/test word");
   parser.Register("features-valid", "string",
                   "Potentially ginourmous auxiliary feature file for validation data, with one vector per validation word");
   parser.Register("feature-matrix", "string",
                   "Topic model matrix with word representations (e.g., LDA, LSA, Word2Vec, etc...)");
-  parser.Register("feature-labels-type", "int",
-                  "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
-  parser.Register("feature-gamma", "double",
-                  "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
   parser.Register("class", "int",
                   "Number of classes", "200");
   parser.Register("class-file", "string",
@@ -141,21 +152,13 @@ int main(int argc, char *argv[])
   string trainFilename;
   bool isTrainDataSet = parser.Get("train", trainFilename);
   if (isTrainDataSet) {
-    ifstream checkStream(trainFilename);
-    if (!checkStream) {
-      cout << "ERROR: training data file not found!\n";
-      return 1;
-    }
+    if (!checkFile(trainFilename, "training data")) { return 1; }
   }
   // Search for validation file
   string validFilename;
   bool isValidDataSet = parser.Get("valid", validFilename);
   if (isValidDataSet) {
-    ifstream checkStream(validFilename);
-    if (!checkStream) {
-      cout << "ERROR: training data file not found!\n";
-      return 1;
-    }
+    if (!checkFile(validFilename, "validation data")) { return 1; }
   }
   if (isTrainDataSet && !isValidDataSet) {
     cout << "ERROR: validation data file must be specified for training!\n";
@@ -165,25 +168,17 @@ int main(int argc, char *argv[])
   string testFilename;
   bool isTestDataSet = parser.Get("test", testFilename);
   if (isTestDataSet) {
-    ifstream checkStream(testFilename);
-    if (!checkStream) {
-      cout << "ERROR: test data file not found!\n";
-      return 1;
-    }
+    if (!checkFile(testFilename, "test data")) { return 1; }
   }
   if (!isTestDataSet && !isTrainDataSet) {
     cout << "ERROR: training or testing file must be specified!\n";
     return 1;
   }
-  // Search for test file
+  // Search for file containing the sentence labels
   string sentenceLabelsFilename;
   bool isSentenceLabelsSet = parser.Get("sentence-labels", sentenceLabelsFilename);
   if (isSentenceLabelsSet) {
-    ifstream checkStream(sentenceLabelsFilename);
-    if (!checkStream) {
-      cout << "ERROR: sentence labels file not found!\n";
-      return 1;
-    }
+    if (!checkFile(sentenceLabelsFilename, "sentence labels")) { return 1; }
   }
   if (!isTestDataSet && !isTrainDataSet) {
     cout << "ERROR: training or testing file must be specified!\n";
@@ -210,25 +205,28 @@ int main(int argc, char *argv[])
   string jsonPathname;
   bool isJsonPathSet = parser.Get("path-json-books", jsonPathname);
   if (isJsonPathSet) {
-    ifstream checkStream(jsonPathname);
-    if (!checkStream) {
-      cout << "ERROR: json book path not found!\n";
-      return 1;
-    }
+    if (!checkFile(jsonPathname, "JSON book path")) { return 1; }
   }
-  
+  // Search for file containing the vocabulary
+  string vocabularyFilename;
+  bool isVocabularySet = parser.Get("vocab", vocabularyFilename);
+  if (isVocabularySet) {
+    if (!checkFile(vocabularyFilename, "vocabulary")) { return 1; }
+  }
+  if (!isTestDataSet && !isTrainDataSet) {
+    cout << "ERROR: training or testing file must be specified!\n";
+    return 1;
+  }
+
   // Search for training features file
   string featureTrainOrTestFilename;
   int numFeatures = 0;
   bool isFeatureTrainOrTestDataSet =
   parser.Get("features", featureTrainOrTestFilename);
   if (isFeatureTrainOrTestDataSet) {
-    ifstream featureStream(featureTrainOrTestFilename);
-    if (!featureStream) {
-      cout << "ERROR: training feature file not found!\n";
-      return 1;
-    }
+    if (!checkFile(featureTrainOrTestFilename, "train feature")) { return 1; }
     // Read the number of features
+    ifstream featureStream(featureTrainOrTestFilename);
     featureStream >> numFeatures;
   }
   // Search for validation/test features file
@@ -236,22 +234,14 @@ int main(int argc, char *argv[])
   bool isFeatureValidFileSet =
   parser.Get("features-valid", featureValidFilename);
   if (isFeatureValidFileSet) {
-    ifstream checkStream(featureValidFilename);
-    if (!checkStream) {
-      cout << "ERROR: valid feature data file not found!\n";
-      return 1;
-    }
+    if (!checkFile(featureValidFilename, "valid/test feature")) { return 1; }
   }
   // Search for feature matrix file
   string featureMatrixFilename;
   bool isFeatureMatrixSet =
   parser.Get("feature-matrix", featureMatrixFilename);
   if (isFeatureMatrixSet) {
-    ifstream checkStream(featureMatrixFilename);
-    if (!checkStream) {
-      cout << "ERROR: feature matrix file not found!\n";
-      return 1;
-    }
+    if (!checkFile(featureMatrixFilename, "feature matrix")) { return 1; }
   }
   // Set feature gamma
   double featureGammaCoeff = 0.9;
@@ -268,11 +258,7 @@ int main(int argc, char *argv[])
   string classFilename;
   bool isClassFileSet = parser.Get("class-file", classFilename);
   if (isClassFileSet) {
-    ifstream checkStream(classFilename);
-    if (!checkStream) {
-      cout << "ERROR: valid feature data file not found!\n";
-      return 1;
-    }
+    if (!checkFile(classFilename, "class data")) { return 1; }
   }
   
   // Set gradient cutoff
@@ -302,7 +288,8 @@ int main(int argc, char *argv[])
   long long sizeDirectNGramConnections = 0;
   sizeDirectNGramConnections = temp * 1000000;
   if (sizeDirectNGramConnections < 0) {
-    cerr << "Number of direct connections must be positive; saw: " << sizeDirectNGramConnections << endl;
+    cerr << "Number of direct connections must be positive; saw: "
+    << sizeDirectNGramConnections << endl;
     return 1;
   }
   // Set order of direct connections
@@ -385,10 +372,14 @@ int main(int argc, char *argv[])
       // Do we use custom classes?
       model.ReadClasses(classFilename);
     } else {
-      // Set the minimum number of word occurrence
-      model.SetMinWordOccurrence(minWordOccurrence);
-      // Extract the vocabulary from the training file
-      model.LearnVocabularyFromTrainFile(numClasses);
+      if (isVocabularySet) {
+        model.ImportVocabularyFromFile(vocabularyFilename, numClasses);
+      } else {
+        // Set the minimum number of word occurrence
+        model.SetMinWordOccurrence(minWordOccurrence);
+        // Extract the vocabulary from the training file
+        model.LearnVocabularyFromTrainFile(numClasses);
+      }
     }
 
     // Initialize the model...
@@ -442,15 +433,25 @@ int main(int argc, char *argv[])
   
   // Test the RNN on the dataset
   if (isTestDataSet && isRnnModelSet) {
-    RnnLMTraining model(rnnModelFilename, true, debugMode);
-    
+    RnnTreeLM model(rnnModelFilename, true, debugMode);
+
+    // Read the vocabulary
+    if (!isVocabularySet)
+      cerr << "Need to specify vocabulary file\n";
+    model.ImportVocabularyFromFile(vocabularyFilename, model.GetNumClasses());
+
+    // Set the sentence labels for validation or test
+    model.SetSentenceLabelsFile(sentenceLabelsFilename);
     // Test the RNN on the test data
-    int testWordCount = 0;
     vector<double> sentenceScores;
+    double logProbability, perplexity, entropy, accuracy;
     model.TestRnnModel(testFilename,
                        featureTrainOrTestFilename,
-                       testWordCount,
-                       sentenceScores);
+                       sentenceScores,
+                       logProbability,
+                       perplexity,
+                       entropy,
+                       accuracy);
   }
   
   return 0;

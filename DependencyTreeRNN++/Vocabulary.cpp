@@ -48,6 +48,7 @@ Vocabulary::Vocabulary(FILE *fi, int sizeVocabulary) {
     m_mapWord2Index[word] = wordIndex;
     m_mapIndex2Word[wordIndex] = word;
   }
+  m_useClassFile = false;
 }
 
 
