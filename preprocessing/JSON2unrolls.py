@@ -98,6 +98,11 @@ def constructDAG(sentence):
 # Create the output path
 os.mkdir(sys.argv[2])
 threshold = int(sys.argv[3])
+# check if we are generating the 
+if len(sys.argv) == 5 and sys.argv[4] == "TOKENS":
+    tokensOnly = True
+    threshold = float("inf")
+    
 
 for filename in glob.glob(sys.argv[1]+ "/*"):
     allSentences = []
@@ -119,9 +124,19 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
                     gutenbergCheck = True
             
             if not gutenbergCheck:
-                unrolls = extractUnrolls(sentenceDAG)
-                allSentences.append(unrolls)
-
-    with open(sys.argv[2] + "/" + os.path.basename(filename) + ".unrolls.json", "wb") as out:
-        json.dump(allSentences, out)
+                if tokensOnly:
+                    tokens = []
+                    for node in nodes:
+                        tokens.append(node[1]["word"])
+                    allSentences.append(" ".join(tokens))
+                else:
+                    unrolls = extractUnrolls(sentenceDAG)
+                    allSentences.append(unrolls)
+    
+    if tokensOnly:
+        with open(sys.argv[2] + "/" + os.path.basename(filename) + ".tokens.txt", "wb") as out:
+            out.write(("\n".join(allSentences)).encode('utf-8') + "\n")
+    else:
+        with open(sys.argv[2] + "/" + os.path.basename(filename) + ".unrolls.json", "wb") as out:
+            json.dump(allSentences, out)
 
