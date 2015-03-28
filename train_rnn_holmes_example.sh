@@ -3,19 +3,19 @@
 # This is the path that should be edited,
 # depending on where the JSON books are stored
 PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
-PATH_JSON_PIOTR_MAC="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 
 # Define the minimum number of word occurrences as 5 and use existing vocabulary file
 MIN_WORD_OCCURRENCE=5
-
 DEP_LABELS=2
-RNN_HIDDENS=200    # 100
-RNN_CLASSES=300    # 500
+RNN_HIDDENS=600
+RNN_CLASSES=250
 NGRAM_SIZE_MB=2000
 NGRAM_ORDER=3
 BPTT_ORDER=5
 FEATURE_GAMMA=0.5
 
+# If we need to debug, change this to "true"
+DEBUG_MODE="true"
 
 # Automatic path generation
 PATH_DATA="./books"
@@ -51,5 +51,5 @@ RnnDependencyTree \
   -bptt-block 1 \
   -class $RNN_CLASSES \
   -feature-gamma $FEATURE_GAMMA \
-  -debug false \
+  -debug $DEBUG_MODE \
   -vocab $FILE_VOCAB

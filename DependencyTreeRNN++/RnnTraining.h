@@ -78,11 +78,8 @@ public:
   : RnnLM(filename, doLoadModel),
   m_debugMode(debugMode),
   m_wordCounter(0),
-  m_fileCorrectSentenceLabels(""),
-  m_weightsBackup(1, 1, 0, 1, 0, 0),
-  m_stateBackup(1, 1, 0, 1, 0, 0, 0) {
-    m_weightsBackup = m_weights;
-    std::cout << "RnnLMTraining\n";
+  m_fileCorrectSentenceLabels("") {
+    Log("RnnLMTraining: debug mode is " + std::to_string(debugMode) + "\n");
   }
   
   void SetTrainFile(const std::string &str) { m_trainFile = str; }
@@ -305,12 +302,6 @@ protected:
   /// Word counter
   /// </summary>
   long m_wordCounter;
-  
-  /// <summary>
-  /// Backup weights and state
-  /// </summary>
-  RnnWeights m_weightsBackup;
-  RnnState m_stateBackup;
   
   /// <summary>
   /// Classification labels

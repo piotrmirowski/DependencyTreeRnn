@@ -172,15 +172,10 @@ bool RnnTreeLM::TrainRnnModel() {
   // Keep track of the initial learning rate
   m_initialLearningRate = m_learningRate;
 
-  // Load the labels
-  LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
-  
   // Log file
-  ostringstream buf;
   string logFilename = m_rnnModelFile + ".log.txt";
-  ofstream logFile(logFilename);
-  cout << "Starting training tree-dependent LM using list of books "
-  << m_trainFile << "...\n";
+  Log("Starting training tree-dependent LM using list of books " +
+      m_trainFile + "...\n", logFilename);
   
   bool loopEpochs = true;
   while (loopEpochs) {
@@ -192,14 +187,15 @@ bool RnnTreeLM::TrainRnnModel() {
     m_corpusTrain.ShuffleBooks();
 
     // Print current epoch and learning rate
-    cout << "Iter: " << m_iteration << " Alpha: " << m_learningRate << "\n";
+    Log("Iter: " + to_string(m_iteration) +
+        " Alpha: " + to_string(m_learningRate) + "\n");
     
     // Reset everything, including word history
     ResetAllRnnActivations(m_state);
     
     // Loop over the books
     clock_t start = clock();
-    cout << m_corpusTrain.NumBooks() << " books to train on\n";
+    Log(to_string(m_corpusTrain.NumBooks()) + " books to train on\n");
     for (int idxBook = 0; idxBook < m_corpusTrain.NumBooks(); idxBook++) {
       // Read the next book (training file)
       m_corpusTrain.NextBook();
@@ -318,17 +314,14 @@ bool RnnTreeLM::TrainRnnModel() {
           -trainLogProbability/log10((double)2) / uniqueWordCounter;
           double perplexity =
           ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
-          buf << "Iter," << m_iteration
-              << ",Alpha," << m_learningRate
-              << ",Book," << idxBook
-              << ",TRAINent," << entropy
-              << ",TRAINppx," << perplexity
-              << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
-          buf << "\n";
-          logFile << buf.str() << flush;
-          cout << buf.str() << flush;
-          buf.str("");
-          buf.clear();
+          Log("Iter," + to_string(m_iteration) +
+              ",Alpha," + to_string(m_learningRate) +
+              ",Book," + to_string(idxBook) +
+              ",TRAINent," + to_string(entropy) +
+              ",TRAINppx," + to_string(perplexity) +
+              ",words/sec," +
+              to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+              logFilename);
         }
         
         // Reset the table of word token probabilities
@@ -346,17 +339,14 @@ bool RnnTreeLM::TrainRnnModel() {
     double trainPerplexity =
     ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
     clock_t now = clock();
-    buf << "Iter," << m_iteration
-        << ",Alpha," << m_learningRate
-        << ",Book,ALL"
-        << ",TRAINent," << trainEntropy
-        << ",TRAINppx," << trainPerplexity
-        << ",words/sec," << 1000000 * (m_wordCounter/((double)(now-start)));
-    buf << "\n";
-    logFile << buf.str() << flush;
-    cout << buf.str() << flush;
-    buf.str("");
-    buf.clear();
+    Log("Iter," + to_string(m_iteration) +
+        ",Alpha," + to_string(m_learningRate) +
+        ",Book,ALL" +
+        ",TRAINent," + to_string(trainEntropy) +
+        ",TRAINppx," + to_string(trainPerplexity) +
+        ",words/sec," +
+        to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+        logFilename);
 
     // Validation
     vector<double> sentenceScores;
@@ -368,16 +358,12 @@ bool RnnTreeLM::TrainRnnModel() {
                  validPerplexity,
                  validEntropy,
                  validAccuracy);
-    buf << "Iter," << m_iteration
-        << ",Alpha," << m_learningRate
-        << ",VALIDacc," << validAccuracy
-        << ",VALIDent," << validEntropy
-        << ",VALIDppx," << validPerplexity
-        << ",words/sec,0\n";
-    logFile << buf.str() << flush;
-    cout << buf.str() << flush;
-    buf.str("");
-    buf.clear();
+    Log("Iter," + to_string(m_iteration) +
+        ",Alpha," + to_string(m_learningRate) +
+        ",VALIDacc," + to_string(validAccuracy) +
+        ",VALIDent," + to_string(validEntropy) +
+        ",VALIDppx," + to_string(validPerplexity) +
+        ",words/sec,0\n", logFilename);
 
     // Reset the position in the training file
     m_wordCounter = 0;
@@ -385,9 +371,18 @@ bool RnnTreeLM::TrainRnnModel() {
     trainLogProbability = 0;
 
     // Shall we start reducing the learning rate?
-    if ((validAccuracy * m_minLogProbaImprovement < lastValidAccuracy)
-        && (m_iteration > 4)) {
-      m_doStartReducingLearningRate = true;
+    if (m_correctSentenceLabels.size() > 0) {
+      // ... based on accuracy of the validation set
+      if ((validAccuracy * m_minLogProbaImprovement < lastValidAccuracy)
+          && (m_iteration > 4)) {
+        m_doStartReducingLearningRate = true;
+      }
+    } else {
+      // ... based on log-probability of the validation set
+      if ((validLogProbability * m_minLogProbaImprovement < lastValidLogProbability)
+          && (m_iteration > 4)) {
+        m_doStartReducingLearningRate = true;
+      }
     }
     if (m_doStartReducingLearningRate) {
       m_learningRate /= 1.5;
@@ -407,7 +402,7 @@ bool RnnTreeLM::TrainRnnModel() {
       if (validAccuracy > bestValidAccuracy) {
         SaveRnnModelToFile();
         SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-        cout << "Saved the best model so far\n";
+        Log("Saved the best model so far\n", logFilename);
         bestValidAccuracy = validAccuracy;
         bestValidLogProbability = validLogProbability;
       }
@@ -428,16 +423,17 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
                              double &perplexity,
                              double &entropy,
                              double &accuracy) {
-  cout << "RnnTreeLM::testNet()\n";
+  Log("RnnTreeLM::testNet()\n");
   
   // Scores file
   string scoresFilename = m_rnnModelFile + ".scores.";
   size_t sep = testFile.find_last_of("\\/");
   if (sep != string::npos)
     scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
-  scoresFilename += ".txt";
-  ofstream scoresFile(scoresFilename);
-  cout << "Writing sentence scores to " << scoresFilename << "...\n";
+  scoresFilename += ".iter" + to_string(m_iteration) + ".txt";
+  Log("Writing sentence scores to " + scoresFilename + "...\n");
+
+  m_weights.Debug();
 
   // We do not use an external file with feature vectors;
   // feature labels are provided in the parse tree itself
@@ -456,7 +452,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
   ForwardPropagateRecurrentConnectionOnly(m_state);
   
   // Loop over the books
-  if (m_debugMode) { cout << "New book\n"; }
+  if (m_debugMode) { Log("New book\n"); }
   for (int idxBook = 0; idxBook < m_corpusValidTest.NumBooks(); idxBook++) {
     // Read the next book
     m_corpusValidTest.NextBook();
@@ -465,7 +461,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
     
     // Loop over the sentences in the book
     book.ResetSentence();
-    if (m_debugMode) { cout << "  New sentence\n"; }
+    if (m_debugMode) { Log("  New sentence\n"); }
     for (int idxSentence = 0; idxSentence < book.NumSentences(); idxSentence++) {
       // Initialize a map of log-likelihoods for each token
       unordered_map<int, double> logProbSentence;
@@ -475,7 +471,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
       // Loop over the unrolls in each sentence
       book.ResetUnroll();
       int numUnrolls = book.NumUnrolls(idxSentence);
-      if (m_debugMode) { cout << "    New unroll\n"; }
+      if (m_debugMode) { Log("    New unroll\n"); }
       for (int idxUnroll = 0; idxUnroll < numUnrolls; idxUnroll++)
       {
         // Reset the state of the neural net before each unroll
@@ -532,33 +528,37 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
               
               // Verbose
               if (m_debugMode) {
-                cout << tokenNumber << "\t"
-                     << targetWord << "\t"
-                     << logProbabilityWord << "\t"
-                     << m_vocab.Word2WordIndex(contextWord) << "\t"
-                     << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                     << m_vocab.Word2WordIndex(targetWord) << "\n";
+                Log(to_string(tokenNumber) + "\t" +
+                    to_string(targetWord) + "\t" +
+                    to_string(logProbabilityWord) + "\t" +
+                    m_vocab.Word2WordIndex(contextWord) + "\t" +
+                    m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
+                    m_vocab.Word2WordIndex(targetWord) + "\t" +
+                    to_string(m_vocab.WordIndex2Class(targetWord)) + "\t" +
+                    to_string(m_vocab.WordIndex2Class(contextWord)) + "\n");
               }
             } else {
               // We have already use the word's log-probability in the score
               // but let's make a safety check
               assert(logProbSentence[tokenNumber] == logProbabilityWord);
               if (m_debugMode) {
-                cout << tokenNumber << "\t"
-                     << targetWord << "\t"
-                     << logProbabilityWord << "\t"
-                     << m_vocab.Word2WordIndex(contextWord) << "\t"
-                     << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                     << m_vocab.Word2WordIndex(targetWord) << "\t(seen)\n";
+                Log(to_string(tokenNumber) + "\t" +
+                    to_string(targetWord) + "\t" +
+                    to_string(logProbabilityWord) + "\t" +
+                    m_vocab.Word2WordIndex(contextWord) + "\t" +
+                    m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
+                    m_vocab.Word2WordIndex(targetWord) + "(seen)\t" +
+                    to_string(m_vocab.WordIndex2Class(targetWord)) + "\t" +
+                    to_string(m_vocab.WordIndex2Class(contextWord)) + "\n");
               }
             }
           } else {
             if (m_debugMode) {
               // Out-of-vocabulary words have probability 0 and index -1
-              cout << tokenNumber << "\t-1\t0\t"
-                   << m_vocab.Word2WordIndex(contextWord) << "\t"
-                   << m_corpusValidTest.labelsReverse[contextLabel] << "\t"
-                   << m_vocab.Word2WordIndex(targetWord) << "\n";
+              Log(to_string(tokenNumber) + "\t-1\t0\t" +
+                  m_vocab.Word2WordIndex(contextWord) + "\t" +
+                  m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
+                  m_vocab.Word2WordIndex(targetWord) + "\t-1\t-1\n");
             }
             numUnk++;
           }
@@ -584,7 +584,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
       logProbSentence.clear();
       // Store the log-probability of the sentence
       sentenceScores.push_back(sentenceLogProbability);
-      scoresFile << sentenceLogProbability << "\n";
+      Log(to_string(sentenceLogProbability) + "\n", scoresFilename);
 
       book.NextSentence();
     } // Loop over sentences
@@ -592,38 +592,27 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
   
   // Log file
   string logFilename = m_rnnModelFile + ".test.log.txt";
-  ofstream logFile(logFilename);
 
   // Return the total logProbability
-  ostringstream buf;
-  buf << "Log probability: " << logProbability
-      << ", number of words " << uniqueWordCounter
-      << " (" << numUnk << " <unk>,"
-      << " " << sentenceScores.size() << " sentences)\n";
-  cout << buf.str() << flush;
-  logFile << buf.str() << flush;
-  buf.str("");
-  buf.clear();
+  Log("Log probability: " + to_string(logProbability) +
+      ", number of words " + to_string(uniqueWordCounter) +
+      " (" + to_string(numUnk) + " <unk>," +
+      " " + to_string(sentenceScores.size()) + " sentences)\n", logFilename);
 
   // Compute the perplexity and entropy
   perplexity = (uniqueWordCounter == 0) ? 0 :
     ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
   entropy = (uniqueWordCounter == 0) ? 0 :
     -logProbability / log10((double)2) / uniqueWordCounter;
-  buf << "PPL net (perplexity without OOV): " << perplexity << endl;
-  cout << buf.str() << flush;
-  logFile << buf.str() << flush;
-  buf.str("");
-  buf.clear();
+  Log("PPL net (perplexity without OOV): " + to_string(perplexity) + "\n",
+      logFilename);
 
+  // Load the labels
+  LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   // Compute the accuracy
   accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
-  buf << "Accuracy " << accuracy * 100 << "% on "
-  << sentenceScores.size() << " sentences\n";
-  cout << buf.str() << flush;
-  logFile << buf.str() << flush;
-  buf.str("");
-  buf.clear();
+  Log("Accuracy: " + to_string(accuracy * 100) + "% on " +
+      to_string(sentenceScores.size()) + " sentences\n", logFilename);
 
   return true;
 }

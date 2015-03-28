@@ -166,6 +166,11 @@ public:
    */
   int GetNumClasses() const { return m_sizeClasses; }
 
+  /**
+   * Debug function
+   */
+  void Debug();
+
   
 protected:
 
@@ -180,11 +185,6 @@ protected:
   long long m_sizeDirectConnection;
   int m_sizeInput;
   int m_sizeOutput;
-
-  /**
-   * Debug function
-   */
-  void Debug();
 }; // class RnnWeights
 
 #endif

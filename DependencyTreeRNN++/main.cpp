@@ -440,8 +440,23 @@ int main(int argc, char *argv[]) {
       cerr << "Need to specify vocabulary file\n";
     model.ImportVocabularyFromFile(vocabularyFilename, model.GetNumClasses());
 
+    // Add the book names to the test corpus
+    model.SetValidFile(testFilename);
+    ifstream test_file_stream(testFilename);
+    string filename;
+    string pathname(jsonPathname);
+    while (test_file_stream >> filename) {
+      string fullname = pathname + filename;
+      cout << fullname << "\n";
+      model.AddBookTestValid(fullname);
+    }
     // Set the sentence labels for validation or test
     model.SetSentenceLabelsFile(sentenceLabelsFilename);
+    // Set the type of dependency labels
+    model.SetDependencyLabelType(featureDepLabelsType);
+    // Set the feature label decay (gamma) weight
+    model.SetFeatureGamma(featureGammaCoeff);
+
     // Test the RNN on the test data
     vector<double> sentenceScores;
     double logProbability, perplexity, entropy, accuracy;

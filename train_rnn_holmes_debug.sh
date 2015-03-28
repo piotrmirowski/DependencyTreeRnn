@@ -8,14 +8,17 @@ PATH_JSON_PIOTR_MAC="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolm
 # Define the minimum number of word occurrences as 2 and use existing vocabulary file
 MIN_WORD_OCCURRENCE=2
 
+# Other parameters
 DEP_LABELS=2
 RNN_HIDDENS=100
-RNN_CLASSES=100
-NGRAM_SIZE_MB=200
+RNN_CLASSES=250
+NGRAM_SIZE_MB=100
 NGRAM_ORDER=3
 BPTT_ORDER=5
 FEATURE_GAMMA=0.5
 
+# If we need to debug, change this to "true"
+DEBUG_MODE="true"
 
 # Automatic path generation
 PATH_DATA="./books"
@@ -32,7 +35,7 @@ FILE_MODEL=$FILE_MODEL"_m"$NGRAM_SIZE_MB
 FILE_MODEL=$FILE_MODEL"_d"$NGRAM_ORDER
 FILE_MODEL=$FILE_MODEL"_b"$BPTT_ORDER
 FILE_MODEL=$FILE_MODEL"_g"$FEATURE_GAMMA
-FILE_MODEL=$FILE_MODEL"_small.model"
+FILE_MODEL=$FILE_MODEL".model"
 echo "RNN model will be stored in $FILE_MODEL..."
 
 # Train the dependency-parsing model
@@ -51,5 +54,5 @@ RnnDependencyTree \
   -bptt-block 1 \
   -class $RNN_CLASSES \
   -feature-gamma $FEATURE_GAMMA \
-  -debug false
-#  -vocab $FILE_VOCAB \
+  -debug $DEBUG_MODE \
+  -vocab $FILE_VOCAB

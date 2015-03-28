@@ -762,6 +762,16 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
 /// </summary>
 bool RnnLMTraining::TrainRnnModel()
 {
+  // Reset the log-likelihood to ginourmous value
+  double lastValidLogProbability = -1E37;
+  double lastValidAccuracy = 0;
+  double bestValidLogProbability = -1E37;
+  double bestValidAccuracy = 0;
+  // Word counter, saved at the end of last training session
+  m_wordCounter = (int)m_currentPosTrainFile;
+  // Keep track of the initial learning rate
+  m_initialLearningRate = m_learningRate;
+
   // Do we use an external file with feature vectors for each
   // consecutive word in the test set?
   // Only if feature matrix (LDA/LSA topic model or Word2Vec) was not set
@@ -770,13 +780,6 @@ bool RnnLMTraining::TrainRnnModel()
   ((!m_featureMatrixUsed) && !m_featureFile.empty());
   FILE *featureFileId = NULL;
   int sizeFeature = GetFeatureSize();
-  
-  // Reset the log-likelihood of the last iteration to ginourmous value
-  double lastValidLogProbability = -1E37;
-  // Word counter, saved at the end of last training session
-  m_wordCounter = (int)m_currentPosTrainFile;
-  // Keep track of the initial learning rate
-  m_initialLearningRate = m_learningRate;
   
   bool loopEpochs = true;
   while (loopEpochs) {
@@ -923,45 +926,45 @@ bool RnnLMTraining::TrainRnnModel()
     m_currentPosTrainFile = 0;
     trainLogProbability = 0;
     
-    if (validLogProbability < lastValidLogProbability) {
-      // Restore the weights and the state from the backup
-      m_weights = m_weightsBackup;
-      m_state = m_stateBackup;
-      printf("Restored the weights from previous iteration\n");
-    } else {
-      // Backup the weights and the state
-      m_weightsBackup = m_weights;
-      m_stateBackup = m_state;
-      printf("Save this model\n");
-    }
-    
     // Shall we start reducing the learning rate?
-    if (validLogProbability * m_minLogProbaImprovement < lastValidLogProbability) {
-      if (!m_doStartReducingLearningRate) {
+    if (m_correctSentenceLabels.size() > 0) {
+      // ... based on accuracy of the validation set
+      if ((validAccuracy * m_minLogProbaImprovement < lastValidAccuracy)
+          && (m_iteration > 4)) {
         m_doStartReducingLearningRate = true;
-      } else {
-        SaveRnnModelToFile();
-        // Let's also save the word embeddings
-        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-        loopEpochs = false;
-        break;
+      }
+    } else {
+      // ... based on log-probability of the validation set
+      if ((validLogProbability * m_minLogProbaImprovement < lastValidLogProbability)
+          && (m_iteration > 4)) {
+        m_doStartReducingLearningRate = true;
       }
     }
-    
+    if (m_doStartReducingLearningRate) {
+      m_learningRate /= 1.5;
+    }
+    // We need to stop at some point!
+    if (m_learningRate < 0.0001) {
+      loopEpochs = false;
+    }
+
     if (loopEpochs) {
-      if (m_doStartReducingLearningRate) {
-        m_learningRate /= 2;
-      }
+      // Store last value of accuracy and log-probability
       lastValidLogProbability = validLogProbability;
+      lastValidAccuracy = validAccuracy;
       validLogProbability = 0;
       m_iteration++;
-      SaveRnnModelToFile();
-      // Let's also save the word embeddings
-      SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
-      printf("Saved the model\n");
+      // Save the best model
+      if (validAccuracy > bestValidAccuracy) {
+        SaveRnnModelToFile();
+        SaveWordEmbeddings(m_rnnModelFile + ".word_embeddings.txt");
+        Log("Saved the best model so far\n");
+        bestValidAccuracy = validAccuracy;
+        bestValidLogProbability = validLogProbability;
+      }
     }
   }
-  
+
   return true;
 }
 
@@ -1014,8 +1017,7 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
   if (sep != string::npos)
     scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
   scoresFilename += ".txt";
-  ofstream scoresFile(scoresFilename);
-  cout << "Writing sentence scores to " << scoresFilename << "...\n";
+  Log("Writing sentence scores to " + scoresFilename + "...\n");
 
   // Last word set to end of sentence
   int lastWord = 0;
@@ -1023,7 +1025,8 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
   logProbability = 0.0;
   double sentenceLogProbability = 0.0;
   // Reset the word counter
-  int wordCounter = 0;
+  int uniqueWordCounter = 0;
+  int numUnk = 0;
   // Reset the sentence scores
   sentenceScores.clear();
   
@@ -1069,7 +1072,7 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
         log10(condProbaClass * condProbaWordGivenClass);
         sentenceLogProbability +=
         log10(condProbaClass * condProbaWordGivenClass);
-        wordCounter++;
+        uniqueWordCounter++;
         if (m_debugMode) {
           cout << word << "\t"
           << condProbaClass * condProbaWordGivenClass << "\t"
@@ -1080,6 +1083,7 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
           // Out-of-vocabulary words have probability 0 and index -1
           cout << "-1\t0\tOOV\n";
         }
+        numUnk++;
       }
       
       // Store the current state s(t) at the end of the input layer vector
@@ -1094,13 +1098,10 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
       // and to save the current sentence score
       if (m_areSentencesIndependent && (word == 0)) {
         ResetHiddenRnnStateAndWordHistory(m_state);
-        cout << sentenceLogProbability << endl;
         sentenceScores.push_back(sentenceLogProbability);
         sentenceLogProbability = 0.0;
         // Write the sentence score to a file
-        ostringstream buf;
-        buf << sentenceLogProbability << "\n";
-        scoresFile << buf.str();
+        Log(to_string(sentenceLogProbability) + "\n", scoresFilename);
       }
     }
   }
@@ -1109,24 +1110,29 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
     fclose(featureFileId);
   }
   
+  // Log file
+  string logFilename = m_rnnModelFile + ".test.log.txt";
+
   // Return the total logProbability
-  cout << "Log probability: " << logProbability
-  << ", number of words " << wordCounter
-  << ", " << sentenceScores.size() << " sentences)\n";
+  Log("Log probability: " + to_string(logProbability) +
+      ", number of words " + to_string(uniqueWordCounter) +
+      " (" + to_string(numUnk) + " <unk>," +
+      " " + to_string(sentenceScores.size()) + " sentences)\n", logFilename);
 
   // Compute the perplexity and entropy
-  perplexity = 0;
-  if (wordCounter > 0) {
-    perplexity = ExponentiateBase10(-logProbability / (double)wordCounter);
-  }
-  cout << "PPL net (perplexity without OOV): " << perplexity << endl;
-  entropy = (wordCounter == 0) ? 0 :
-  -logProbability / log10((double)2) / wordCounter;
+  perplexity = (uniqueWordCounter == 0) ? 0 :
+  ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
+  entropy = (uniqueWordCounter == 0) ? 0 :
+  -logProbability / log10((double)2) / uniqueWordCounter;
+  Log("PPL net (perplexity without OOV): " + to_string(perplexity) + "\n",
+      logFilename);
 
+  // Load the labels
+  LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   // Compute the accuracy
   accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
-  cout << "Accuracy " << accuracy * 100 << "% on "
-  << sentenceScores.size() << " sentences\n";
+  Log("Accuracy: " + to_string(accuracy * 100) + "% on " +
+      to_string(sentenceScores.size()) + " sentences\n", logFilename);
 
   return true;
 }
@@ -1143,8 +1149,8 @@ void RnnLMTraining::LoadCorrectSentenceLabels(const std::string &labelFile)
   while (file >> label) {
     m_correctSentenceLabels.push_back(label);
   }
-  cout << "Loaded correct labels for " << m_correctSentenceLabels.size()
-       << " validation/test sentences\n";
+  Log("Loaded correct labels for " + to_string(m_correctSentenceLabels.size()) +
+      " validation/test sentences\n");
   file.close();
 }
 
