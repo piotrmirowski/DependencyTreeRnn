@@ -489,8 +489,8 @@ int main(int argc, char *argv[]) {
     model.TrainRnnModel();
   }
 
-  // Test the RNN on the dataset
-  if (isTestDataSet && isRnnModelSet) {
+  // Test the RNN on the dataset using models trained on dependency parse trees
+  if (isTestDataSet && isRnnModelSet && (featureDepLabelsType >= 0)) {
     RnnTreeLM model(rnnModelFilename, true, debugMode);
 
     // Read the vocabulary
@@ -525,5 +525,26 @@ int main(int argc, char *argv[]) {
                        accuracy);
   }
   
+  // Test the RNN on the dataset using models trained on sequential text
+  if (isTestDataSet && isRnnModelSet && (featureDepLabelsType < 0)) {
+    RnnLMTraining model(rnnModelFilename, true, debugMode);
+
+    // Add the book names to the test corpus
+    model.SetValidFile(testFilename);
+    // Set the sentence labels for validation or test
+    model.SetSentenceLabelsFile(sentenceLabelsFilename);
+
+    // Test the RNN on the test data
+    vector<double> sentenceScores;
+    double logProbability, perplexity, entropy, accuracy;
+    model.TestRnnModel(testFilename,
+                       featureTrainOrTestFilename,
+                       sentenceScores,
+                       logProbability,
+                       perplexity,
+                       entropy,
+                       accuracy);
+  }
+
   return 0;
 }

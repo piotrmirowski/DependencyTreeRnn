@@ -19,7 +19,7 @@
 /**
  * Constructor that reads the vocabulary and classes from the model file.
  */
-Vocabulary::Vocabulary(FILE *fi, int sizeVocabulary) {
+Vocabulary::Vocabulary(FILE *fi, int sizeVocabulary, int numClasses) {
   // Read the vocabulary, stored in text format as following:
   // index_number count word_token class_number
   // There are tabs and spaces separating the 4 columns
@@ -39,15 +39,25 @@ Vocabulary::Vocabulary(FILE *fi, int sizeVocabulary) {
     if (fscanf(fi, "%s", &buffer))
       m_vocabularyStorage[a].word = buffer;
     std::string word = m_vocabularyStorage[a].word;
+
     // Read the class index
     int classIndex;
     fscanf(fi, "%d", &classIndex);
 
-    // Store in the vocabulary vector and in the two maps
+    // Store the class information
     m_vocabularyStorage[a].classIndex = classIndex;
+    m_mapWord2Class[word] = classIndex;
+
+    // Associate the word (string) to the word token number using two maps
     m_mapWord2Index[word] = wordIndex;
     m_mapIndex2Word[wordIndex] = word;
   }
+
+  // Store which words are in which class, using a vector
+  // (length number of classes) of vectors (num words in that class)
+  m_numClasses = numClasses;
+  StoreClassAssociations();
+
   m_useClassFile = false;
 }
 
@@ -183,7 +193,6 @@ bool Vocabulary::ReadClasses(const std::string &filename)
     }
 
     m_mapWord2Class[w] = clnum;
-    m_classes.insert(clnum);
     words.insert(w);
 
     max_class = (clnum > max_class) ? (clnum) : (max_class);
@@ -220,7 +229,6 @@ bool Vocabulary::ReadClasses(const std::string &filename)
  */
 void Vocabulary::AssignWordsToClasses() {
   int sizeVocabulary = GetVocabularySize();
-  int sizeClasses = m_numClasses;
   if (m_useClassFile) {
     // Custom-specified classes, provided in a file, were used
     // at training time. There is nothing to do at this point,
@@ -256,9 +264,9 @@ void Vocabulary::AssignWordsToClasses() {
       if (df > 1) {
         df = 1;
       }
-      if (df > (a + 1) / (double)sizeClasses) {
+      if (df > (a + 1) / (double)m_numClasses) {
         m_vocabularyStorage[i].classIndex = a;
-        if (a < sizeClasses-1) {
+        if (a < m_numClasses - 1) {
           a++;
         }
       } else {
@@ -269,23 +277,30 @@ void Vocabulary::AssignWordsToClasses() {
     }
   }
 
+  // Store which words are in which class, using a vector
+  // (length number of classes) of vectors (num words in that class)
+  StoreClassAssociations();
+}
+
+
+/**
+ * Store information on which word is in which class
+ */
+void Vocabulary::StoreClassAssociations() {
   // Store which words are in which class,
   // using a vector (length number of classes) of vectors (num words in that class)
-  m_classWords.resize(sizeClasses);
-  for (int i = 0; i < sizeClasses; i++) {
+  m_classWords.resize(m_numClasses);
+  for (int i = 0; i < m_numClasses; i++) {
     m_classWords[i].clear();
   }
-  for (int i = 0; i < sizeVocabulary; i++) {
+  for (int i = 0; i < GetVocabularySize(); i++) {
     // Assign each word into its class
     int wordClass = m_vocabularyStorage[i].classIndex;
     m_classWords[wordClass].push_back(i);
   }
 
   // Check that there is no empty class
-  for (int i = 0; i < sizeClasses; i++) {
-    if (m_classWords[i].size() == 0) {
-      printf("Empty class %d\n", i);
-    }
+  for (int i = 0; i < m_numClasses; i++) {
     assert(!(m_classWords[i].empty()));
   }
 }

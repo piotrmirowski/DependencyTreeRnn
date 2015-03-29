@@ -1125,9 +1125,9 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
       if (m_areSentencesIndependent && (targetWord == 0)) {
         ResetHiddenRnnStateAndWordHistory(m_state);
         sentenceScores.push_back(sentenceLogProbability);
-        sentenceLogProbability = 0.0;
         // Write the sentence score to a file
         Log(to_string(sentenceLogProbability) + "\n", scoresFilename);
+        sentenceLogProbability = 0.0;
       }
     }
   }

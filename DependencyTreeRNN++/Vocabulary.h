@@ -44,7 +44,7 @@ public:
   /**
    * Constructor that reads the vocabulary and classes from the model file.
    */
-  Vocabulary(FILE *fi, int sizeVocabulary);
+  Vocabulary(FILE *fi, int sizeVocabulary, int numClasses);
 
   /**
    * Save the vocabulary to a model file.
@@ -139,12 +139,14 @@ public:
   std::unordered_map<std::string, int> m_mapWord2Class;
 
   // Information relative to the classes
-  std::set<int> m_classes;
   std::vector<std::vector<int> > m_classWords;
 
 protected:
   bool m_useClassFile;
   int m_numClasses;
+
+  // Store information on which word is in which class
+  void StoreClassAssociations();
 }; // class Vocabulary
 
 #endif

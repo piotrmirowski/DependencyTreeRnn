@@ -383,7 +383,7 @@ void RnnLM::LoadRnnModelFromFile() {
 
   // Read the vocabulary, stored in text format as following:
   // index_number count word_token class_number
-  m_vocab = Vocabulary(fi, sizeVocabulary);
+  m_vocab = Vocabulary(fi, sizeVocabulary, sizeClasses);
 
   // Allocate the RNN here
   int a = m_featureMatrixUsed;
