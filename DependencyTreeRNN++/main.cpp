@@ -98,7 +98,8 @@ int main(int argc, char *argv[]) {
   parser.Register("vocab", "string",
                   "File with vocabulary (used by word dependency-based RNN)");
   parser.Register("feature-labels-type", "int",
-                  "Dependency parsing labels: 0=none, 1=concatenate, 2=features");
+                  "Dependency parsing labels: -1 = sequential data, 0 = tree data but no dependency label, 1 = tree data, concatenate dependency label, 2 = tree data, use labels as features",
+                  "-1");
   parser.Register("feature-gamma", "double",
                   "Decay weight for features consisting of topic model vectors or label vectors", "0.9");
   parser.Register("features", "string",
@@ -321,28 +322,13 @@ int main(int argc, char *argv[]) {
   int minWordOccurrence = 3;
   parser.Get("min-word-occurrence", minWordOccurrence);
   
-  if (isTrainDataSet && isRnnModelSet) {
+  if (isTrainDataSet && isRnnModelSet && (featureDepLabelsType < 0)) {
     // Construct the RNN object, setting the filename, without loading anything
-    //RnnLMTraining model(rnnModelFilename, loadModel, debugMode);
-    RnnTreeLM model(rnnModelFilename, isRnnModelPresent, debugMode);
-    
-    // Add the book names to the training corpus
+    RnnLMTraining model(rnnModelFilename, isRnnModelPresent, debugMode);
+
+    // Set the training and validation file names
     model.SetTrainFile(trainFilename);
-    ifstream trainFileStream(trainFilename);
-    string filename;
-    string pathname(jsonPathname);
-    while (trainFileStream >> filename) {
-      string fullname = pathname + filename;
-      model.AddBookTrain(fullname);
-    }
-    
-    // Add the book names to the validation corpus
     model.SetValidFile(validFilename);
-    ifstream valid_file_stream(validFilename);
-    while (valid_file_stream >> filename) {
-      string fullname = pathname + filename;
-      model.AddBookTestValid(fullname);
-    }
     // Set the sentence labels for validation or test
     model.SetSentenceLabelsFile(sentenceLabelsFilename);
 
@@ -366,7 +352,80 @@ int main(int argc, char *argv[]) {
      }
      */
 
-    // TODO: store the vocab and labels in the model!
+    // Read the vocabulary and word classes
+    if (isClassFileSet) {
+      // Do we use custom classes?
+      model.ReadClasses(classFilename);
+    } else {
+      // Set the minimum number of word occurrence
+      model.SetMinWordOccurrence(minWordOccurrence);
+      // Extract the vocabulary from the training file
+      model.LearnVocabularyFromTrainFile(numClasses);
+    }
+
+    // Initialize the model...
+    int sizeVocabulary = model.GetVocabularySize();
+    if (!isRnnModelPresent) {
+      model.InitializeRnnModel(sizeVocabulary,
+                               sizeHiddenLayer,
+                               0,
+                               numClasses,
+                               sizeCompressionLayer,
+                               sizeDirectNGramConnections,
+                               orderDirectNGramConnections);
+      // Set the feature label decay (gamma) weight
+      model.SetFeatureGamma(featureGammaCoeff);
+    } else {
+      // ... or check that the model specification corresponds to what is loaded
+      assert(model.GetInputSize() == sizeVocabulary);
+      assert(model.GetHiddenSize() == sizeHiddenLayer);
+      assert(model.GetCompressSize() == sizeCompressionLayer);
+      assert(model.GetOutputSize() == sizeVocabulary + numClasses);
+      assert(model.GetFeatureSize() == 0);
+      assert(model.GetNumDirectConnection() == sizeDirectNGramConnections);
+      assert(model.GetOrderDirectConnection() == orderDirectNGramConnections);
+    }
+
+    // When the model's training is restarting, these learning parameters
+    // are simply ignored
+    if (!isRnnModelPresent) {
+      model.SetLearningRate(startingLearningRate);
+      model.SetGradientCutoff(gradientCutoff);
+      model.SetRegularization(regularization);
+      model.SetMinImprovement(minLogProbaImprovement);
+      model.SetNumStepsBPTT(bptt);
+      model.SetBPTTBlock(bpttBlock);
+      model.SetIndependent(independent);
+    }
+    
+    // Train the model
+    model.TrainRnnModel();
+  }
+  
+  if (isTrainDataSet && isRnnModelSet && (featureDepLabelsType >= 0)) {
+    // Construct the RNN object, setting the filename, without loading anything
+    RnnTreeLM model(rnnModelFilename, isRnnModelPresent, debugMode);
+
+    // Add the book names to the training corpus
+    model.SetTrainFile(trainFilename);
+    ifstream trainFileStream(trainFilename);
+    string filename;
+    string pathname(jsonPathname);
+    while (trainFileStream >> filename) {
+      string fullname = pathname + filename;
+      model.AddBookTrain(fullname);
+    }
+
+    // Add the book names to the validation corpus
+    model.SetValidFile(validFilename);
+    ifstream valid_file_stream(validFilename);
+    while (valid_file_stream >> filename) {
+      string fullname = pathname + filename;
+      model.AddBookTestValid(fullname);
+    }
+    // Set the sentence labels for validation or test
+    model.SetSentenceLabelsFile(sentenceLabelsFilename);
+
     // Read the vocabulary and word classes
     if (isClassFileSet) {
       // Do we use custom classes?
@@ -425,12 +484,11 @@ int main(int argc, char *argv[]) {
       model.SetBPTTBlock(bpttBlock);
       model.SetIndependent(independent);
     }
-    
+
     // Train the model
-    //model.SaveRnnModelToFile();
     model.TrainRnnModel();
   }
-  
+
   // Test the RNN on the dataset
   if (isTestDataSet && isRnnModelSet) {
     RnnTreeLM model(rnnModelFilename, true, debugMode);
@@ -454,8 +512,6 @@ int main(int argc, char *argv[]) {
     model.SetSentenceLabelsFile(sentenceLabelsFilename);
     // Set the type of dependency labels
     model.SetDependencyLabelType(featureDepLabelsType);
-    // Set the feature label decay (gamma) weight
-    model.SetFeatureGamma(featureGammaCoeff);
 
     // Test the RNN on the test data
     vector<double> sentenceScores;

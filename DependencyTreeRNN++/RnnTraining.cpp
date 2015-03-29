@@ -78,11 +78,10 @@ using namespace std;
 /// and return it as an integer in the vocabulary vector.
 /// Returns -1 for OOV words and -2 for end of file.
 /// </summary>
-int RnnLMTraining::ReadWordIndexFromFile(WordReader &reader)
-{
+int RnnLMTraining::ReadWordIndexFromFile(WordReader &reader) {
   std::string word = reader.get_next();
   // We return -2 if end of file, not to confuse with -1 for OOV words
-  int index = -2;
+  int index = m_eof;
   if (!(word.empty())) {
     index = m_vocab.SearchWordInVocabulary(word);
   }
@@ -106,36 +105,58 @@ bool RnnLMTraining::LearnVocabularyFromTrainFile(int numClasses)
   }
 
   // Word reader file on the training file
+  Log("Reading vocabulary from file " + m_trainFile + "...\n");
   WordReader wr(m_trainFile);
 
   // Create an empty vocabulary structure
-  m_vocab = Vocabulary(numClasses);
+  Vocabulary vocab(numClasses);
   // The first word needs to be end-of-sentence
-  m_vocab.AddWordToVocabulary("</s>");
-  
+  vocab.AddWordToVocabulary("</s>");
+
   // Read the words in the file one by one
   long numWordsTrainingFile = 0;
   std::string nextWord = wr.get_next();
   while (!(nextWord.empty())) {
     numWordsTrainingFile++;
     // When a word is unknown, add it to the vocabulary
-    m_vocab.AddWordToVocabulary(nextWord);
+    vocab.AddWordToVocabulary(nextWord);
     // Read next word
     nextWord = wr.get_next();
   }
-  
+  Log("Read " + to_string(numWordsTrainingFile) + " words\n");
+
+  // Create the final vocabulary structure
+  m_vocab = Vocabulary(numClasses);
+  // The first word needs to be end-of-sentence
+  m_vocab.AddWordToVocabulary("</s>");
+  // Filter out words with fewer than specified mininum number of occurrences
+  // and replace them by <unk>
+  for (int k = 0; k < vocab.GetVocabularySize(); k++) {
+    int count = vocab.m_vocabularyStorage[k].cn;
+    if (count >= m_minWordOccurrences) {
+      string word = vocab.m_vocabularyStorage[k].word;
+      m_vocab.AddWordToVocabulary(word);
+      m_vocab.SetWordCount(word, count);
+    } else {
+      m_vocab.AddWordToVocabulary("<unk>");
+      m_oov = m_vocab.SearchWordInVocabulary("<unk>");
+      int prevCount = m_vocab.m_vocabularyStorage[m_oov].cn;
+      m_vocab.SetWordCount("<unk>", prevCount + count);
+    }
+  }
+
   // Simply sort the words by frequency, making sure that </s> is first
   m_vocab.SortVocabularyByFrequency();
   // Assign the words to classes
   m_vocab.AssignWordsToClasses();
 
-  // Debug
-  m_numTrainWords = numWordsTrainingFile;
-  if (m_debugMode) {
-    printf("Vocab size: %d\n", GetVocabularySize());
-    printf("Words in train file: %ld\n", numWordsTrainingFile);
-  }
+  // Note the <unk> (OOV) tag
+  m_oov = m_vocab.SearchWordInVocabulary("<unk>");
 
+  m_numTrainWords = numWordsTrainingFile;
+  printf("Vocab size: %d\n", GetVocabularySize());
+  printf("Unknown tag at: %d\n", m_oov);
+  printf("Words in train file: %ld\n", m_numTrainWords);
   return true;
 }
 
@@ -266,7 +287,7 @@ void RnnLMTraining::ResetAllRnnActivations(RnnState &state) const
 /// One step of backpropagation of the errors through the RNN
 /// (optionally, backpropagation through time, BPTT) and of gradient descent.
 /// </summary>
-void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, int word)
+void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWord, int word)
 {
   // No learning step if OOV word
   if (word == -1) {
@@ -595,7 +616,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int lastWord, 
     }
     
     // weight update hidden(t) -> input(t)
-    int a = lastWord;
+    int a = contextWord;
     if (a != -1) {
       for (int b = 0; b < sizeHidden; b++) {
         int node = a + b * sizeInput;
@@ -772,6 +793,11 @@ bool RnnLMTraining::TrainRnnModel()
   // Keep track of the initial learning rate
   m_initialLearningRate = m_learningRate;
 
+  // Log file
+  string logFilename = m_rnnModelFile + ".log.txt";
+  Log("Starting training sequential LM using file " +
+      m_trainFile + "...\n", logFilename);
+
   // Do we use an external file with feature vectors for each
   // consecutive word in the test set?
   // Only if feature matrix (LDA/LSA topic model or Word2Vec) was not set
@@ -788,56 +814,33 @@ bool RnnLMTraining::TrainRnnModel()
     
     // Create a word reader on the training file
     WordReader wordReaderTrain(m_trainFile);
-    printf("Starting training using file %s\n", m_trainFile.c_str());
-    // Verbose
-    printf("Iter: %3d\tAlpha: %f\n", m_iteration, m_learningRate);
-    fflush(stdout);
-    
+    // Print current epoch and learning rate
+    Log("Iter: " + to_string(m_iteration) +
+        " Alpha: " + to_string(m_learningRate) + "\n");
+
     // Reset everything, including word history
     ResetAllRnnActivations(m_state);
     
     // Ugly way to open the feature vector file
     if (isFeatureFileUsed) {
-      if (m_featureFile.empty()) {
-        printf("Feature file for the test data is needed to evaluate this model (use -features <FILE>)\n");
-        return 0;
-      }
       featureFileId = fopen(m_featureFile.c_str(), "rb");
       int dummySizeFeature;
       fread(&dummySizeFeature, sizeof(dummySizeFeature), 1, featureFileId);
     }
     
     // Last word set to end of sentence
-    int lastWord = 0;
+    int contextWord = 0;
     // Current word
-    int word = 0;
-    
-    // Skip the first m_wordCounter words
-    // (if the training was interrupted in the middle of an epoch)
-    if (m_wordCounter > 0) {
-      for (int a = 0; a < m_wordCounter; a++) {
-        word = ReadWordIndexFromFile(wordReaderTrain);
-      }
-    }
-    
+    int targetWord = 0;
+        
     // Start an iteration
     clock_t start = clock();
     bool loopTrain = true;
     while (loopTrain) {
-      // Verbose
-      if ((m_wordCounter % 10000 == 0) && (m_wordCounter > 0)) {
-        clock_t now = clock();
-        double entropy = -trainLogProbability/log10((double)2) / m_wordCounter;
-        if (m_numTrainWords > 0) {
-          printf("Iter: %3d\tAlpha: %f\t   TRAIN entropy: %.4f    Progress: %.2f%%   Words/sec: %.1f\n", m_iteration, m_learningRate, entropy, m_wordCounter/(double)m_numTrainWords*100, m_wordCounter/((double)(now-start)/1000.0));
-        } else {
-          printf("Iter: %3d\tAlpha: %f\t   TRAIN entropy: %.4f    Progress: %ldK\n", m_iteration, m_learningRate, entropy, m_wordCounter/1000);
-        }
-      }
-      
       // Read next word
-      word = ReadWordIndexFromFile(wordReaderTrain);
-      loopTrain = (word >= -1);
+      targetWord = ReadWordIndexFromFile(wordReaderTrain);
+      loopTrain = (targetWord > m_eof);
+
       if (loopTrain) {
         // Use the pre-computed feature file?
         if (isFeatureFileUsed) {
@@ -845,51 +848,63 @@ bool RnnLMTraining::TrainRnnModel()
         }
         // Use the topic-model features coming from a word embedding matrix?
         if (m_featureMatrixUsed) {
-          UpdateFeatureVectorUsingTopicModel(lastWord, m_state);
+          UpdateFeatureVectorUsingTopicModel(contextWord, m_state);
         }
         
         // Run one step of the RNN
-        ForwardPropagateOneStep(lastWord, word, m_state);
+        ForwardPropagateOneStep(contextWord, targetWord, m_state);
         
-        // For perplexity, we do not to count OOV words...
-        if (word >= 0) {
+        // For perplexity, we do not to count OOV or beginning of sentence
+        if ((targetWord >= 0) && (targetWord != m_oov)) {
           // Compute the log-probability of the current word
-          int targetClass = m_vocab.WordIndex2Class(word);
+          int targetClass = m_vocab.WordIndex2Class(targetWord);
           int outputNodeClass = targetClass + GetVocabularySize();
           double condProbaClass = m_state.OutputLayer[outputNodeClass];
-          double condProbaWordGivenClass =  m_state.OutputLayer[word];
+          double condProbaWordGivenClass =  m_state.OutputLayer[targetWord];
           trainLogProbability +=
           log10(condProbaClass * condProbaWordGivenClass);
           m_wordCounter++;
         }
         
         // Safety check (that log-likelihood does not diverge)
-        if (trainLogProbability != trainLogProbability) {
-          // || (isinf(trainLogProbability)
-          printf("\nNumerical error infinite log-likelihood\n");
-          return false;
-        }
-        
+        assert(!(trainLogProbability != trainLogProbability));
+
         // Shift memory needed for BPTT to next time step
-        m_bpttVectors.Shift(lastWord);
+        m_bpttVectors.Shift(contextWord);
 
         // Back-propagate the error and run one step of
         // stochastic gradient descent (SGD) using optional
         // back-propagation through time (BPTT)
-        BackPropagateErrorsThenOneStepGradientDescent(lastWord, word);
+        BackPropagateErrorsThenOneStepGradientDescent(contextWord, targetWord);
         
         // Store the current state s(t) at the end of the input layer vector
         // so that it can be used as s(t-1) at the next step
         ForwardPropagateRecurrentConnectionOnly(m_state);
         
         // Rotate the word history by one
-        ForwardPropagateWordHistory(m_state, lastWord, word);
+        ForwardPropagateWordHistory(m_state, contextWord, targetWord);
         
         // Did we reach the end of the sentence?
         // If so, we need to reset the state of the neural net
-        if (m_areSentencesIndependent && (word == 0)) {
+        if (m_areSentencesIndependent && (targetWord == 0)) {
           ResetHiddenRnnStateAndWordHistory(m_state);
         }
+      }
+
+      // Verbose
+      if ((m_wordCounter % 10000 == 0) && (m_wordCounter > 0)) {
+        clock_t now = clock();
+        double entropy = -trainLogProbability/log10((double)2) / m_wordCounter;
+        double perplexity =
+          ExponentiateBase10(-trainLogProbability / (double)m_wordCounter);
+        Log("Iter," + to_string(m_iteration) +
+            ",Alpha," + to_string(m_learningRate) +
+            ",Perc," + to_string(100 * m_wordCounter / m_numTrainWords) +
+            ",TRAINent," + to_string(entropy) +
+            ",TRAINppx," + to_string(perplexity) +
+            ",words/sec," +
+            to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+            logFilename);
       }
     }
     
@@ -903,7 +918,14 @@ bool RnnLMTraining::TrainRnnModel()
     double trainEntropy = -trainLogProbability/log10((double)2) / m_wordCounter;
     double trainPerplexity =
     ExponentiateBase10(-trainLogProbability / (double)m_wordCounter);
-    printf("Iter: %3d\tAlpha: %f\t   TRAIN entropy: %.4f    PPX: %.4f   Words/sec: %.1f\n", m_iteration, m_learningRate, trainEntropy, trainPerplexity, m_wordCounter/((double)(now-start)/1000.0));
+    Log("Iter," + to_string(m_iteration) +
+        ",Alpha," + to_string(m_learningRate) +
+        ",Perc,100" +
+        ",TRAINent," + to_string(trainEntropy) +
+        ",TRAINppx," + to_string(trainPerplexity) +
+        ",words/sec," +
+        to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+        logFilename);
     
     // Validation
     vector<double> sentenceScores;
@@ -915,11 +937,12 @@ bool RnnLMTraining::TrainRnnModel()
                  validPerplexity,
                  validEntropy,
                  validAccuracy);
-    printf("Training iteration: %d\n", m_iteration);
-    printf("VALID log probability: %f\n", validLogProbability);
-    printf("VALID PPL net less OOVs: %f\n", validPerplexity);
-    printf("VALID entropy: %.4f\n", validEntropy);
-    printf("VALID accuracy: %f\n", validAccuracy);
+    Log("Iter," + to_string(m_iteration) +
+        ",Alpha," + to_string(m_learningRate) +
+        ",VALIDacc," + to_string(validAccuracy) +
+        ",VALIDent," + to_string(validEntropy) +
+        ",VALIDppx," + to_string(validPerplexity) +
+        ",words/sec,0\n", logFilename);
 
     // Reset the position in the training file
     m_wordCounter = 0;
@@ -980,6 +1003,16 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
                                  double &entropy,
                                  double &accuracy)
 {
+  Log("RnnTrainingLM::testNet()\n");
+
+  // Scores file
+  string scoresFilename = m_rnnModelFile + ".scores.";
+  size_t sep = testFile.find_last_of("\\/");
+  if (sep != string::npos)
+    scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
+  scoresFilename += ".iter" + to_string(m_iteration) + ".txt";
+  Log("Writing sentence scores to " + scoresFilename + "...\n");
+
   // Do we use an external file with feature vectors for each
   // consecutive word in the test set?
   // Only if feature matrix (LDA/LSA topic model or Word2Vec) was not set
@@ -988,14 +1021,6 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
   ((!m_featureMatrixUsed) && !featureFile.empty());
   FILE *featureFileId = NULL;
   int sizeFeature = GetFeatureSize();
-  
-  // This function does what ResetHiddenRnnStateAndWordHistory does
-  // and also resets the features, inputs, outputs and compression layer
-  ResetAllRnnActivations(m_state);
-  
-  // Create a word reader on the test file
-  WordReader wordReaderTest(testFile);
-  
   // Ugly way to open the feature vector file
   if (isFeatureFileUsed) {
     if (featureFile.empty()) {
@@ -1010,17 +1035,16 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
       return false;
     }
   }
-  
-  // Scores file
-  string scoresFilename = m_rnnModelFile + ".scores.";
-  size_t sep = testFile.find_last_of("\\/");
-  if (sep != string::npos)
-    scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
-  scoresFilename += ".txt";
-  Log("Writing sentence scores to " + scoresFilename + "...\n");
 
+  // This function does what ResetHiddenRnnStateAndWordHistory does
+  // and also resets the features, inputs, outputs and compression layer
+  ResetAllRnnActivations(m_state);
+  
+  // Create a word reader on the test file
+  WordReader wordReaderTest(testFile);
+  
   // Last word set to end of sentence
-  int lastWord = 0;
+  int contextWord = 0;
   // Reset the log-likelihood
   logProbability = 0.0;
   double sentenceLogProbability = 0.0;
@@ -1032,12 +1056,7 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
   
   // Since we just set s(1)=0, this will set the state s(t-1) to 0 as well...
   ForwardPropagateRecurrentConnectionOnly(m_state);
-  // OK...
-  ResetWordHistory(m_state);
   if (m_areSentencesIndependent) {
-    // OK, let's reset the hidden states again to 1.0
-    // and copy that value to the s(t-1) in the inputs
-    // How many times are we going to reset that RNN?
     ResetHiddenRnnStateAndWordHistory(m_state);
   }
   
@@ -1045,8 +1064,8 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
   bool loopTest = true;
   while (loopTest) {
     // Get the index of the next word (or -1 if OOV or -2 if end of file)
-    int word = ReadWordIndexFromFile(wordReaderTest);
-    loopTest = (word >= -1);
+    int targetWord = ReadWordIndexFromFile(wordReaderTest);
+    loopTest = (targetWord > m_eof);
     
     if (loopTest) {
       // Use the pre-computed feature file?
@@ -1055,33 +1074,40 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
       }
       // Use the topic-model features coming from a word embedding matrix?
       if (m_featureMatrixUsed) {
-        UpdateFeatureVectorUsingTopicModel(lastWord, m_state);
+        UpdateFeatureVectorUsingTopicModel(contextWord, m_state);
       }
       
       // Run one step of the RNN
-      ForwardPropagateOneStep(lastWord, word, m_state);
+      ForwardPropagateOneStep(contextWord, targetWord, m_state);
       
-      // For perplexity, we do not count OOV words...
-      if (word >= 0) {
+      // For perplexity, we do not count OOV words and beginning of sentence...
+      if ((targetWord >= 0) && (targetWord != m_oov)) {
         // Compute the log-probability of the current word
-        int targetClass = m_vocab.WordIndex2Class(word);
+        int targetClass = m_vocab.WordIndex2Class(targetWord);
         int outputNodeClass = targetClass + GetVocabularySize();
         double condProbaClass = m_state.OutputLayer[outputNodeClass];
-        double condProbaWordGivenClass =  m_state.OutputLayer[word];
-        logProbability +=
+        double condProbaWordGivenClass =  m_state.OutputLayer[targetWord];
+        double logProbabilityWord =
         log10(condProbaClass * condProbaWordGivenClass);
-        sentenceLogProbability +=
-        log10(condProbaClass * condProbaWordGivenClass);
+        logProbability += logProbabilityWord;
+        sentenceLogProbability += logProbabilityWord;
         uniqueWordCounter++;
+
+        // Verbose
         if (m_debugMode) {
-          cout << word << "\t"
-          << condProbaClass * condProbaWordGivenClass << "\t"
-          << m_vocab.GetNthWord(word) << endl;
+          Log(to_string(targetWord) + "\t" +
+              to_string(logProbabilityWord) + "\t" +
+              m_vocab.Word2WordIndex(contextWord) + "\t" +
+              m_vocab.Word2WordIndex(targetWord) + "\t" +
+              to_string(m_vocab.WordIndex2Class(targetWord)) + "\t" +
+              to_string(m_vocab.WordIndex2Class(contextWord)) + "\n");
         }
       } else {
         if (m_debugMode) {
           // Out-of-vocabulary words have probability 0 and index -1
-          cout << "-1\t0\tOOV\n";
+          Log("-1\t0\t" +
+              m_vocab.Word2WordIndex(contextWord) + "\t" +
+              m_vocab.Word2WordIndex(targetWord) + "\t-1\t-1\n");
         }
         numUnk++;
       }
@@ -1091,12 +1117,12 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
       ForwardPropagateRecurrentConnectionOnly(m_state);
       
       // Rotate the word history by one
-      ForwardPropagateWordHistory(m_state, lastWord, word);
+      ForwardPropagateWordHistory(m_state, contextWord, targetWord);
       
       // Did we reach the end of the sentence?
       // If so, we need to reset the state of the neural net
       // and to save the current sentence score
-      if (m_areSentencesIndependent && (word == 0)) {
+      if (m_areSentencesIndependent && (targetWord == 0)) {
         ResetHiddenRnnStateAndWordHistory(m_state);
         sentenceScores.push_back(sentenceLogProbability);
         sentenceLogProbability = 0.0;

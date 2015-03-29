@@ -78,6 +78,9 @@ public:
   : RnnLM(filename, doLoadModel),
   m_debugMode(debugMode),
   m_wordCounter(0),
+  m_minWordOccurrences(5),
+  m_oov(1),
+  m_eof(-2),
   m_fileCorrectSentenceLabels("") {
     Log("RnnLMTraining: debug mode is " + std::to_string(debugMode) + "\n");
   }
@@ -161,6 +164,14 @@ public:
   /// </summary>
   virtual bool LearnVocabularyFromTrainFile(int numClasses);
   
+
+  /**
+   * Set the minimum number of word occurrences
+   */
+  virtual void SetMinWordOccurrence(int val) {
+    m_minWordOccurrences = val;
+  }
+
   /// <summary>
   /// Read the classes from a file in the following format:
   /// word [TAB] class_index
@@ -293,24 +304,25 @@ protected:
   
 protected:
   
-  /// <summary>
-  /// Are we in debug mode?
-  /// </summary>
+  // Are we in debug mode?
   bool m_debugMode;
   
-  /// <summary>
-  /// Word counter
-  /// </summary>
+  // Word counter
   long m_wordCounter;
   
-  /// <summary>
-  /// Classification labels
-  /// </summary>
+  // Index of the OOV (<unk>) word
+  int m_oov;
+
+  // Index of the EOF token
+  int m_eof;
+
+  // Minimum number of word occurrences
+  int m_minWordOccurrences;
+
+  // Classification labels
   std::vector<int> m_correctSentenceLabels;
   
-  /// <summary>
-  /// File containing the correct classification labels
-  /// </summary>
+  // File containing the correct classification labels
   std::string m_fileCorrectSentenceLabels;
 };
 

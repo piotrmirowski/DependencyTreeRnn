@@ -8,7 +8,6 @@ PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 FILE_MODEL=$1
 FILE_VOCAB=$2
 DEP_LABELS=$3
-FEATURE_GAMMA=$4
 
 # If we need to debug, change this to "true"
 DEBUG_MODE="false"
@@ -30,8 +29,7 @@ RnnDependencyTree \
   -path-json-books $PATH_JSON \
   -vocab $FILE_VOCAB \
   -debug $DEBUG_MODE \
-  -feature-labels-type $DEP_LABELS \
-  -feature-gamma $FEATURE_GAMMA
+  -feature-labels-type $DEP_LABELS
 
 # Test the dependency-parsing model on the test data
 RnnDependencyTree \
@@ -41,5 +39,4 @@ RnnDependencyTree \
   -path-json-books $PATH_JSON \
   -vocab $FILE_VOCAB \
   -debug $DEBUG_MODE \
-  -feature-labels-type $DEP_LABELS \
-  -feature-gamma $FEATURE_GAMMA
+  -feature-labels-type $DEP_LABELS

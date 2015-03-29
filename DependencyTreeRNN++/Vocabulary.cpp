@@ -283,6 +283,9 @@ void Vocabulary::AssignWordsToClasses() {
 
   // Check that there is no empty class
   for (int i = 0; i < sizeClasses; i++) {
+    if (m_classWords[i].size() == 0) {
+      printf("Empty class %d\n", i);
+    }
     assert(!(m_classWords[i].empty()));
   }
 }

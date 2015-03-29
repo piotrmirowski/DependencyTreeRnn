@@ -433,8 +433,6 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
   scoresFilename += ".iter" + to_string(m_iteration) + ".txt";
   Log("Writing sentence scores to " + scoresFilename + "...\n");
 
-  m_weights.Debug();
-
   // We do not use an external file with feature vectors;
   // feature labels are provided in the parse tree itself
   

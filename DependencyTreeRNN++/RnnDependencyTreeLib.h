@@ -34,7 +34,7 @@ public:
   // otherwise simply set its filename
   : RnnLMTraining(filename, doLoadModel, debugMode),
   // Parameters set by default (can be overriden when loading the model)
-  m_typeOfDepLabels(0), m_oov(1), m_labels(1) {
+  m_typeOfDepLabels(0), m_labels(1) {
     std::cout << "RnnTreeLM\n";
   }
   
@@ -124,9 +124,6 @@ protected:
   
   // Label vocabulary representation (label -> index of the label)
   int m_typeOfDepLabels;
-  
-  // Index of the OOV (<unk>) word
-  int m_oov;
   
   // Label vocabulary hashtables
   Vocabulary m_labels;
