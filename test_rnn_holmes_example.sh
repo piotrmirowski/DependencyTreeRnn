@@ -8,6 +8,10 @@ PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
 FILE_MODEL=$1
 FILE_VOCAB=$2
 DEP_LABELS=$3
+# Example of call when dependency labels are included (-feature-labels-type 2):
+# $ ./test_rnn_holmes_examples.sh models/GutenbergHolmes_p2_mw2_h100_c250_m100_d3_b5_g0.5.model books/vocab_mw5.txt 2
+# Example of call when dependency labels are not included (-feature-labels-type 0):
+# $ ./test_rnn_holmes_examples.sh models/GutenbergHolmes_p0_mw2_h100_c250_m100_d3_b5_g0.5.model books/vocab_mw5.txt 0
 
 # If we need to debug, change this to "true"
 DEBUG_MODE="false"

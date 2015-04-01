@@ -1,0 +1,9 @@
+Sequential data:
+minimum 5 word occurrence
+V = 72846 words
+
+Plain RNN:
+250 classes
+2000MB of 3-gram connections
+BPTT(5) every 1 step
+100 hidden: 39.423077% (dev), 40.384615% (test)

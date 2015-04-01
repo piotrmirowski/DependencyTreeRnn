@@ -6,7 +6,7 @@ PATH_SEQUENTIAL="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes_S
 
 # Define the minimum number of word occurrences as 5 and use existing vocabulary file
 MIN_WORD_OCCURRENCE=5
-RNN_HIDDENS=100
+RNN_HIDDENS=200
 RNN_CLASSES=250
 NGRAM_SIZE_MB=2000
 NGRAM_ORDER=3
