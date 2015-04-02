@@ -134,4 +134,45 @@ static void RandomizeVector(std::vector<double> &vec) {
   }
 }
 
+
+/**
+ * Convert int or double to string
+ */
+static std::string ConvString(int val) {
+  return std::to_string(static_cast<long long int>(val));
+}
+
+
+/**
+ * Convert int or double to string
+ */
+static std::string ConvString(size_t val) {
+  return std::to_string(static_cast<long long int>(val));
+}
+
+
+/**
+ * Convert int or double to string
+ */
+static std::string ConvString(long int val) {
+  return std::to_string(static_cast<long long int>(val));
+}
+
+
+/**
+ * Convert int or double to string
+ */
+static std::string ConvString(long long int val) {
+  return std::to_string(static_cast<long long int>(val));
+}
+
+
+/**
+ * Convert int or double to string
+ */
+static std::string ConvString(double val) {
+  return std::to_string(static_cast<long double>(val));
+}
+
+
 #endif

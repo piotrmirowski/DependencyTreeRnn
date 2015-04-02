@@ -187,15 +187,15 @@ bool RnnTreeLM::TrainRnnModel() {
     m_corpusTrain.ShuffleBooks();
 
     // Print current epoch and learning rate
-    Log("Iter: " + to_string(m_iteration) +
-        " Alpha: " + to_string(m_learningRate) + "\n");
+    Log("Iter: " + ConvString(m_iteration) +
+        " Alpha: " + ConvString(m_learningRate) + "\n");
     
     // Reset everything, including word history
     ResetAllRnnActivations(m_state);
     
     // Loop over the books
     clock_t start = clock();
-    Log(to_string(m_corpusTrain.NumBooks()) + " books to train on\n");
+    Log(ConvString(m_corpusTrain.NumBooks()) + " books to train on\n");
     for (int idxBook = 0; idxBook < m_corpusTrain.NumBooks(); idxBook++) {
       // Read the next book (training file)
       m_corpusTrain.NextBook();
@@ -314,13 +314,13 @@ bool RnnTreeLM::TrainRnnModel() {
           -trainLogProbability/log10((double)2) / uniqueWordCounter;
           double perplexity =
           ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
-          Log("Iter," + to_string(m_iteration) +
-              ",Alpha," + to_string(m_learningRate) +
-              ",Book," + to_string(idxBook) +
-              ",TRAINent," + to_string(entropy) +
-              ",TRAINppx," + to_string(perplexity) +
+          Log("Iter," + ConvString(m_iteration) +
+              ",Alpha," + ConvString(m_learningRate) +
+              ",Book," + ConvString(idxBook) +
+              ",TRAINent," + ConvString(entropy) +
+              ",TRAINppx," + ConvString(perplexity) +
               ",words/sec," +
-              to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+              ConvString(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
               logFilename);
         }
         
@@ -339,13 +339,13 @@ bool RnnTreeLM::TrainRnnModel() {
     double trainPerplexity =
     ExponentiateBase10(-trainLogProbability / (double)uniqueWordCounter);
     clock_t now = clock();
-    Log("Iter," + to_string(m_iteration) +
-        ",Alpha," + to_string(m_learningRate) +
+    Log("Iter," + ConvString(m_iteration) +
+        ",Alpha," + ConvString(m_learningRate) +
         ",Book,ALL" +
-        ",TRAINent," + to_string(trainEntropy) +
-        ",TRAINppx," + to_string(trainPerplexity) +
+        ",TRAINent," + ConvString(trainEntropy) +
+        ",TRAINppx," + ConvString(trainPerplexity) +
         ",words/sec," +
-        to_string(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
+        ConvString(1000000 * (m_wordCounter/((double)(now-start)))) + "\n",
         logFilename);
 
     // Validation
@@ -358,11 +358,11 @@ bool RnnTreeLM::TrainRnnModel() {
                  validPerplexity,
                  validEntropy,
                  validAccuracy);
-    Log("Iter," + to_string(m_iteration) +
-        ",Alpha," + to_string(m_learningRate) +
-        ",VALIDacc," + to_string(validAccuracy) +
-        ",VALIDent," + to_string(validEntropy) +
-        ",VALIDppx," + to_string(validPerplexity) +
+    Log("Iter," + ConvString(m_iteration) +
+        ",Alpha," + ConvString(m_learningRate) +
+        ",VALIDacc," + ConvString(validAccuracy) +
+        ",VALIDent," + ConvString(validEntropy) +
+        ",VALIDppx," + ConvString(validPerplexity) +
         ",words/sec,0\n", logFilename);
 
     // Reset the position in the training file
@@ -430,7 +430,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
   size_t sep = testFile.find_last_of("\\/");
   if (sep != string::npos)
     scoresFilename += testFile.substr(sep + 1, testFile.size() - sep - 1);
-  scoresFilename += ".iter" + to_string(m_iteration) + ".txt";
+  scoresFilename += ".iter" + ConvString(m_iteration) + ".txt";
   Log("Writing sentence scores to " + scoresFilename + "...\n");
 
   // We do not use an external file with feature vectors;
@@ -526,34 +526,34 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
               
               // Verbose
               if (m_debugMode) {
-                Log(to_string(tokenNumber) + "\t" +
-                    to_string(targetWord) + "\t" +
-                    to_string(logProbabilityWord) + "\t" +
+                Log(ConvString(tokenNumber) + "\t" +
+                    ConvString(targetWord) + "\t" +
+                    ConvString(logProbabilityWord) + "\t" +
                     m_vocab.Word2WordIndex(contextWord) + "\t" +
                     m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
                     m_vocab.Word2WordIndex(targetWord) + "\t" +
-                    to_string(m_vocab.WordIndex2Class(targetWord)) + "\t" +
-                    to_string(m_vocab.WordIndex2Class(contextWord)) + "\n");
+                    ConvString(m_vocab.WordIndex2Class(targetWord)) + "\t" +
+                    ConvString(m_vocab.WordIndex2Class(contextWord)) + "\n");
               }
             } else {
               // We have already use the word's log-probability in the score
               // but let's make a safety check
               assert(logProbSentence[tokenNumber] == logProbabilityWord);
               if (m_debugMode) {
-                Log(to_string(tokenNumber) + "\t" +
-                    to_string(targetWord) + "\t" +
-                    to_string(logProbabilityWord) + "\t" +
+                Log(ConvString(tokenNumber) + "\t" +
+                    ConvString(targetWord) + "\t" +
+                    ConvString(logProbabilityWord) + "\t" +
                     m_vocab.Word2WordIndex(contextWord) + "\t" +
                     m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
                     m_vocab.Word2WordIndex(targetWord) + "(seen)\t" +
-                    to_string(m_vocab.WordIndex2Class(targetWord)) + "\t" +
-                    to_string(m_vocab.WordIndex2Class(contextWord)) + "\n");
+                    ConvString(m_vocab.WordIndex2Class(targetWord)) + "\t" +
+                    ConvString(m_vocab.WordIndex2Class(contextWord)) + "\n");
               }
             }
           } else {
             if (m_debugMode) {
               // Out-of-vocabulary words have probability 0 and index -1
-              Log(to_string(tokenNumber) + "\t-1\t0\t" +
+              Log(ConvString(tokenNumber) + "\t-1\t0\t" +
                   m_vocab.Word2WordIndex(contextWord) + "\t" +
                   m_corpusValidTest.labelsReverse[contextLabel] + "\t" +
                   m_vocab.Word2WordIndex(targetWord) + "\t-1\t-1\n");
@@ -582,7 +582,7 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
       logProbSentence.clear();
       // Store the log-probability of the sentence
       sentenceScores.push_back(sentenceLogProbability);
-      Log(to_string(sentenceLogProbability) + "\n", scoresFilename);
+      Log(ConvString(sentenceLogProbability) + "\n", scoresFilename);
 
       book.NextSentence();
     } // Loop over sentences
@@ -592,25 +592,25 @@ bool RnnTreeLM::TestRnnModel(const string &testFile,
   string logFilename = m_rnnModelFile + ".test.log.txt";
 
   // Return the total logProbability
-  Log("Log probability: " + to_string(logProbability) +
-      ", number of words " + to_string(uniqueWordCounter) +
-      " (" + to_string(numUnk) + " <unk>," +
-      " " + to_string(sentenceScores.size()) + " sentences)\n", logFilename);
+  Log("Log probability: " + ConvString(logProbability) +
+      ", number of words " + ConvString(uniqueWordCounter) +
+      " (" + ConvString(numUnk) + " <unk>," +
+      " " + ConvString(sentenceScores.size()) + " sentences)\n", logFilename);
 
   // Compute the perplexity and entropy
   perplexity = (uniqueWordCounter == 0) ? 0 :
     ExponentiateBase10(-logProbability / (double)uniqueWordCounter);
   entropy = (uniqueWordCounter == 0) ? 0 :
     -logProbability / log10((double)2) / uniqueWordCounter;
-  Log("PPL net (perplexity without OOV): " + to_string(perplexity) + "\n",
+  Log("PPL net (perplexity without OOV): " + ConvString(perplexity) + "\n",
       logFilename);
 
   // Load the labels
   LoadCorrectSentenceLabels(m_fileCorrectSentenceLabels);
   // Compute the accuracy
   accuracy = AccuracyNBestList(sentenceScores, m_correctSentenceLabels);
-  Log("Accuracy: " + to_string(accuracy * 100) + "% on " +
-      to_string(sentenceScores.size()) + " sentences\n", logFilename);
+  Log("Accuracy: " + ConvString(accuracy * 100) + "% on " +
+      ConvString(sentenceScores.size()) + " sentences\n", logFilename);
 
   return true;
 }
