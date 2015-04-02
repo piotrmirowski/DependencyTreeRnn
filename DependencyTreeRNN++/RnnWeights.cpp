@@ -108,38 +108,38 @@ void RnnWeights::Clear() {
  */
 void RnnWeights::Load(FILE *fi) {
   // Read the weights of input -> hidden connections
-  Log("Reading " + to_string(m_sizeHidden) + "x" + to_string(m_sizeInput) +
-      " input->hidden weights...\n");
+  Log("Reading " + ConvString(m_sizeHidden) +
+      "x" + ConvString(m_sizeInput) + " input->hidden weights...\n");
   ReadBinaryMatrix(fi, m_sizeInput, m_sizeHidden, Input2Hidden);
   // Read the weights of recurrent hidden -> hidden connections
-  Log("Reading " + to_string(m_sizeHidden) + "x" + to_string(m_sizeHidden) +
+  Log("Reading " + ConvString(m_sizeHidden) + "x" + ConvString(m_sizeHidden) +
       " recurrent hidden->hidden weights...\n");
   ReadBinaryMatrix(fi, m_sizeHidden, m_sizeHidden, Recurrent2Hidden);
   // Read the weights of feature -> hidden connections
-  Log("Reading " + to_string(m_sizeHidden) + "x" + to_string(m_sizeFeature) +
+  Log("Reading " + ConvString(m_sizeHidden) + "x" + ConvString(m_sizeFeature) +
       " feature->hidden weights...\n");
   ReadBinaryMatrix(fi, m_sizeFeature, m_sizeHidden, Features2Hidden);
   // Read the weights of feature -> output connections
-  Log("Reading " + to_string(m_sizeOutput) + "x" + to_string(m_sizeFeature) +
+  Log("Reading " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeFeature) +
       " feature->output weights...\n");
   ReadBinaryMatrix(fi, m_sizeFeature, m_sizeOutput, Features2Output);
   if (m_sizeCompress == 0) {
     // Read the weights of hidden -> output connections
-    Log("Reading " + to_string(m_sizeOutput) + "x" + to_string(m_sizeHidden) +
+    Log("Reading " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeHidden) +
         " hidden->output weights...\n");
     ReadBinaryMatrix(fi, m_sizeHidden, m_sizeOutput, Hidden2Output);
   } else {
     // Read the weights of hidden -> compression connections
-    Log("Reading " + to_string(m_sizeCompress) + "x" + to_string(m_sizeHidden) +
+    Log("Reading " + ConvString(m_sizeCompress) + "x" + ConvString(m_sizeHidden) +
         " hidden->compress weights...\n");
     ReadBinaryMatrix(fi, m_sizeHidden, m_sizeCompress, Hidden2Output);
     // Read the weights of compression -> output connections
-    Log("Reading " + to_string(m_sizeOutput) + "x" + to_string(m_sizeCompress) +
+    Log("Reading " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeCompress) +
         " compress->output weights...\n");
     ReadBinaryMatrix(fi, m_sizeCompress, m_sizeOutput, Compress2Output);
   }
   if (m_sizeDirectConnection > 0) {
-    Log("Reading " + to_string(m_sizeDirectConnection) +
+    Log("Reading " + ConvString(m_sizeDirectConnection) +
         " n-gram connections...\n");
 #ifdef USE_HASHTABLES
 #else
@@ -156,38 +156,38 @@ void RnnWeights::Load(FILE *fi) {
 void RnnWeights::Save(FILE *fo) {
   string logFilename = "log_saving.txt";
   // Save the weights U: input -> hidden (i.e., the word embeddings)
-  Log("Saving " + to_string(m_sizeHidden) + "x" + to_string(m_sizeInput) +
+  Log("Saving " + ConvString(m_sizeHidden) + "x" + ConvString(m_sizeInput) +
       " input->hidden weights...\n", logFilename);
   SaveBinaryMatrix(fo, m_sizeInput, m_sizeHidden, Input2Hidden);
   // Save the weights W: recurrent hidden -> hidden (i.e., the time-delay)
-  Log("Saving " + to_string(m_sizeHidden) + "x" + to_string(m_sizeHidden) +
+  Log("Saving " + ConvString(m_sizeHidden) + "x" + ConvString(m_sizeHidden) +
       " recurrent hidden->hidden weights...\n", logFilename);
   SaveBinaryMatrix(fo, m_sizeHidden, m_sizeHidden, Recurrent2Hidden);
   // Save the weights feature -> hidden
-  Log("Saving " + to_string(m_sizeHidden) + "x" + to_string(m_sizeFeature) +
+  Log("Saving " + ConvString(m_sizeHidden) + "x" + ConvString(m_sizeFeature) +
       " feature->hidden weights...\n", logFilename);
   SaveBinaryMatrix(fo, m_sizeFeature, m_sizeHidden, Features2Hidden);
   // Save the weights G: feature -> output
-  Log("Saving " + to_string(m_sizeOutput) + "x" + to_string(m_sizeFeature) +
+  Log("Saving " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeFeature) +
       " feature->output weights...\n", logFilename);
   SaveBinaryMatrix(fo, m_sizeFeature, m_sizeOutput, Features2Output);
   // Save the weights hidden -> compress and compress -> output
   // or simply the weights V: hidden -> output
   if (m_sizeCompress > 0) {
-    Log("Saving " + to_string(m_sizeCompress) + "x" + to_string(m_sizeHidden) +
+    Log("Saving " + ConvString(m_sizeCompress) + "x" + ConvString(m_sizeHidden) +
         " hidden->compress weights...\n", logFilename);
     SaveBinaryMatrix(fo, m_sizeHidden, m_sizeCompress, Hidden2Output);
-    Log("Saving " + to_string(m_sizeOutput) + "x" + to_string(m_sizeCompress) +
+    Log("Saving " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeCompress) +
         " compress->output weights...\n", logFilename);
     SaveBinaryMatrix(fo, m_sizeCompress, m_sizeOutput, Compress2Output);
   } else {
-    Log("Saving " + to_string(m_sizeOutput) + "x" + to_string(m_sizeHidden) +
+    Log("Saving " + ConvString(m_sizeOutput) + "x" + ConvString(m_sizeHidden) +
         " hidden->output weights...\n", logFilename);
     SaveBinaryMatrix(fo, m_sizeHidden, m_sizeOutput, Hidden2Output);
   }
   if (m_sizeDirectConnection > 0) {
     // Save the direct connections
-    Log("Saving " + to_string(m_sizeDirectConnection) +
+    Log("Saving " + ConvString(m_sizeDirectConnection) +
         " n-gram connections...\n", logFilename);
 #ifdef USE_HASHTABLES
 #else
@@ -204,24 +204,24 @@ void RnnWeights::Save(FILE *fo) {
  * Debug function
  */
 void RnnWeights::Debug() {
-  Log("input2hidden: " + to_string(m_sizeInput) + "x" +
-      to_string(m_sizeHidden) + " " +
-      to_string(Input2Hidden[(m_sizeInput-1)*(m_sizeHidden-1)]) + "\n");
-  Log("recurrent2hidden: " + to_string(m_sizeHidden) + "x" +
-      to_string(m_sizeHidden) + " " +
-      to_string(Recurrent2Hidden[(m_sizeHidden-1)*(m_sizeHidden-1)]) + "\n");
-  Log("hidden2output: " + to_string(m_sizeHidden) + "x" +
-      to_string(m_sizeOutput) + " " +
-      to_string(Hidden2Output[(m_sizeOutput-1)*(m_sizeHidden-1)]) + "\n");
+  Log("input2hidden: " + ConvString(m_sizeInput) + "x" +
+      ConvString(m_sizeHidden) + " " +
+      ConvString(Input2Hidden[(m_sizeInput-1)*(m_sizeHidden-1)]) + "\n");
+  Log("recurrent2hidden: " + ConvString(m_sizeHidden) + "x" +
+      ConvString(m_sizeHidden) + " " +
+      ConvString(Recurrent2Hidden[(m_sizeHidden-1)*(m_sizeHidden-1)]) + "\n");
+  Log("hidden2output: " + ConvString(m_sizeHidden) + "x" +
+      ConvString(m_sizeOutput) + " " +
+      ConvString(Hidden2Output[(m_sizeOutput-1)*(m_sizeHidden-1)]) + "\n");
   if (m_sizeFeature > 0) {
-    Log("features2hidden: " + to_string(m_sizeFeature) + "x" +
-        to_string(m_sizeHidden) + " " +
-        to_string(Features2Hidden[(m_sizeFeature-1)*(m_sizeHidden-1)]) + "\n");
-    Log("features2output: " + to_string(m_sizeFeature) + "x" +
-        to_string(m_sizeOutput) + " " +
-        to_string(Features2Output[(m_sizeFeature-1)*(m_sizeOutput-1)]) + "\n");
+    Log("features2hidden: " + ConvString(m_sizeFeature) + "x" +
+        ConvString(m_sizeHidden) + " " +
+        ConvString(Features2Hidden[(m_sizeFeature-1)*(m_sizeHidden-1)]) + "\n");
+    Log("features2output: " + ConvString(m_sizeFeature) + "x" +
+        ConvString(m_sizeOutput) + " " +
+        ConvString(Features2Output[(m_sizeFeature-1)*(m_sizeOutput-1)]) + "\n");
   }
   if (m_sizeDirectConnection > 0)
-    Log("direct: " + to_string(m_sizeDirectConnection) + " " +
-      to_string(DirectNGram[m_sizeDirectConnection-1]) + "\n");
+    Log("direct: " + ConvString(m_sizeDirectConnection) + " " +
+      ConvString(DirectNGram[m_sizeDirectConnection-1]) + "\n");
 } // void Debug()

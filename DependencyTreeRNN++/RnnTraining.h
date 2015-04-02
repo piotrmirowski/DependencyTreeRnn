@@ -57,6 +57,7 @@
 #include <iostream>
 #include <fstream>
 #include "CorpusWordReader.h"
+#include "Utils.h"
 #include "RnnLib.h"
 #include "RnnState.h"
 
@@ -82,7 +83,7 @@ public:
   m_oov(1),
   m_eof(-2),
   m_fileCorrectSentenceLabels("") {
-    Log("RnnLMTraining: debug mode is " + std::to_string(debugMode) + "\n");
+    Log("RnnLMTraining: debug mode is " + ConvString(debugMode) + "\n");
   }
   
   void SetTrainFile(const std::string &str) { m_trainFile = str; }
