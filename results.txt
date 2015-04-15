@@ -4,6 +4,16 @@ V = 72846 words
 250 classes
 
 
+No n-gram connections
+BPTT(5) every 1 step
+25 hidden: TODO???
+50 hidden: IN PROGRESS
+75 hidden: TODO???
+100 hidden: IN PROGRESS
+150 hidden: TODO???
+200 hidden: IN PROGRESS
+
+
 2000MB of 3-gram connections
 BPTT(5) every 1 step
 100 hidden: 39.423077% (dev), 40.384615% (test)
@@ -13,23 +23,38 @@ BPTT(5) every 1 step
 
 1000MB of 2-gram connections
 BPTT(5) every 1 step
+25 hidden: TODO???
+50 hidden: TODO
+75 hidden: TODO???
 100 hidden: 28.653846% (dev), 30.384615% (test)
+150 hidden: TODO???
+200 hidden: TODO
 
 
 1000MB of 3-gram connections
 BPTT(5) every 1 step
+25 hidden: TODO
 50 hidden: 39.2308% (dev), 40.769231% (test)
+75 hidden: TODO
 100 hidden: 39.423077% (dev), 40.576923% (test)
+150 hidden: TODO
+200 hidden: TODO
+
 
 1000MB of 3-gram connections
 BPTT(10) every 1 step
-100 hidden: IN PROGRESS
+100 hidden: 39.423077% (dev), 40.576923% (test)
+-> not interesting
 
 
 1000MB of 4-gram connections
 BPTT(5) every 1 step
-50 hidden: IN PROGRESS
+25 hidden: TODO
+50 hidden: 40.192308% (dev), 42.307692% (test)
+75 hidden: TODO
 100 hidden: IN PROGRESS
+250 hiden: TODO
+200 hidden: IN PROGRESS
 
 
 Dependency Tree RNN:
