@@ -30,3 +30,29 @@ BPTT(10) every 1 step
 BPTT(5) every 1 step
 50 hidden: IN PROGRESS
 100 hidden: IN PROGRESS
+
+
+Dependency Tree RNN:
+minimum 5 word occurrence
+V = 67824 words, 44 labels
+250 classes
+
+labels as features (p2)
+1000MB of 3-gram connections
+BPTT_ORDER=5
+200 hidden: 50.576923% (dev), 50.000000% (test)
+
+labels as features (p2)
+2000MB of 3-gram connections
+BPTT_ORDER=5
+200 hidden: IN PROGRESS
+
+labels concatenated with words (p1)
+2000MB of 3-gram connections
+BPTT_ORDER=5
+200 hidden: IN PROGRESS
+
+labels concatenated with words (p0)
+2000MB of 3-gram connections
+BPTT_ORDER=5
+200 hidden: IN PROGRESS

@@ -98,12 +98,15 @@ def constructDAG(sentence):
 # Create the output path
 os.mkdir(sys.argv[2])
 threshold = int(sys.argv[3])
-# check if we are generating the 
+tokensOnly = False
+# check if we are generating the text for the RNNs
 if len(sys.argv) == 5 and sys.argv[4] == "TOKENS":
     tokensOnly = True
     threshold = float("inf")
     
-
+    
+tokensKeptCounter = 0
+wordTypesKept = []
 for filename in glob.glob(sys.argv[1]+ "/*"):
     allSentences = []
 
@@ -124,6 +127,10 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
                     gutenbergCheck = True
             
             if not gutenbergCheck:
+                tokensKeptCounter += len(nodes)
+                for node in nodes:
+                    if node[1]["word"] not in wordTypesKept:
+                        wordTypesKept.append( node[1]["word"])
                 if tokensOnly:
                     tokens = []
                     for node in nodes:
@@ -132,7 +139,7 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
                 else:
                     unrolls = extractUnrolls(sentenceDAG)
                     allSentences.append(unrolls)
-    
+    print "unique word types kept=" + str(len(wordTypesKept))    
     if tokensOnly:
         with open(sys.argv[2] + "/" + os.path.basename(filename) + ".tokens.txt", "wb") as out:
             out.write(("\n".join(allSentences)).encode('utf-8') + "\n")
@@ -140,3 +147,5 @@ for filename in glob.glob(sys.argv[1]+ "/*"):
         with open(sys.argv[2] + "/" + os.path.basename(filename) + ".unrolls.json", "wb") as out:
             json.dump(allSentences, out)
 
+print "tokens kept=" + str(tokensKeptCounter)
+print "unique word types kept=" + str(len(wordTypesKept))
