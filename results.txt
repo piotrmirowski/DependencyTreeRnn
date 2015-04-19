@@ -7,7 +7,7 @@ V = 72846 words
 No n-gram connections
 BPTT(5) every 1 step
 50 hidden: 29.615385% (dev), 28.076923% (test)
-100 hidden: IN PROGRESS
+100 hidden: 30.0000% (dev), 30.0000% (test)
 200 hidden: IN PROGRESS
 300 hidden: in progress
 
@@ -22,10 +22,10 @@ BPTT(5) every 1 step
 
 1000MB of 2-gram connections
 BPTT(5) every 1 step
-50 hidden: IN PROGRESS
+50 hidden: 29.615385% (dev), 30.769231% (test)
 100 hidden: 28.653846% (dev), 30.384615% (test)
 200 hidden: TODO
-300 hidden: TODO
+300 hidden: IN PROGRESS
 
 
 1000MB of 3-gram connections
@@ -33,7 +33,7 @@ BPTT(5) every 1 step
 50 hidden: 39.2308% (dev), 40.769231% (test)
 100 hidden: 39.423077% (dev), 40.576923% (test)
 200 hidden: IN PROGRESS
-300 hidden: TODO
+300 hidden: IN PROGRESS
 
 
 1000MB of 3-gram connections
