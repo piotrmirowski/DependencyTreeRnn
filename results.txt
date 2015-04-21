@@ -62,31 +62,41 @@ BPTT_ORDER=5
 200 hidden: 50.576923% (dev), 50.000000% (test)
 
 labels as features (p2)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
+BPTT_ORDER=5
+50 hidden: 46.730769% (dev), 47.115385% (test)
+
+labels as features (p2)
+2000MB of 4-gram connections
 BPTT_ORDER=5
 100 hidden: IN PROGRESS
 
 labels as features (p2)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
 BPTT_ORDER=5
 200 hidden: IN PROGRESS
 
 labels as features (p2)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
 BPTT_ORDER=5
 300 hidden: IN PROGRESS
 
 labels concatenated with words (p0)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
 BPTT_ORDER=5
-100 hidden: IN PROGRESS
+50 hidden: 52.692308% (dev), 48.846154% (test)
 
 labels concatenated with words (p0)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
+BPTT_ORDER=5
+100 hidden: 54.038462% (dev), 51.346154% (test)
+
+labels concatenated with words (p0)
+2000MB of 4-gram connections
 BPTT_ORDER=5
 200 hidden: IN PROGRESS
 
 labels concatenated with words (p0)
-2000MB of 3-gram connections
+2000MB of 4-gram connections
 BPTT_ORDER=5
 300 hidden: IN PROGRESS
