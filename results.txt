@@ -80,7 +80,7 @@ gamma=0.5
 labels as features (p2)
 2000MB of 4-gram connections
 BPTT_ORDER=5
-200 hidden: IN PROGRESS
+200 hidden: 49.807692% (dev), 49.615385% (test)
 
 labels as features (p2)
 2000MB of 4-gram connections
@@ -100,7 +100,7 @@ BPTT_ORDER=5
 labels concatenated with words (p0)
 2000MB of 4-gram connections
 BPTT_ORDER=5
-200 hidden: IN PROGRESS
+200 hidden: 52.692308% (dev), 50.769231% (test)
 
 labels concatenated with words (p0)
 2000MB of 4-gram connections
