@@ -65,44 +65,56 @@ labels as features (p2)
 2000MB of 4-gram connections
 BPTT_ORDER=5
 50 hidden
+gamma=0: TODO Piotr
 gamma=0.1: 47.115385% (dev), 48.269231% (test)
 gamma=0.5: 46.730769% (dev), 47.115385% (test)
 gamma=0.9: 47.307692% (dev), 46.730769% (test)
 gamma=1.0: 47.307692% (dev), 46.730769% (test)
-gamma=1.0: 48.076923% (dev), 45.576923% (test)
+gamma=1.1: 48.076923% (dev), 45.576923% (test)
+
+labels as features (p2)
+2000MB of 4-gram connections
+BPTT_ORDER=5
+100 hidden
+gamma=0: TODO Piotr
+gamma=0.1: IN PROGRESS
+gamma=0.5: 50.000000% (dev), 49.615385% (test)
+gamma=0.9: IN PROGRESS
+gamma=1.0: IN PROGRESS
+gamma=1.1: IN PROGRESS
+
+labels as features (p2)
+2000MB of 3-gram connections
+BPTT_ORDER=5
+gamma=0.5
+50 hidden: TODO 1
+100 hidden: TODO 2
+200 hidden: TODO 5
+300 hidden: TODO Piotr
+
 
 labels as features (p2)
 2000MB of 4-gram connections
 BPTT_ORDER=5
 gamma=0.5
+50 hidden: 46.730769% (dev), 47.115385% (test)
 100 hidden: 50.000000% (dev), 49.615385% (test)
-
-labels as features (p2)
-2000MB of 4-gram connections
-BPTT_ORDER=5
 200 hidden: 49.807692% (dev), 49.615385% (test)
-
-labels as features (p2)
-2000MB of 4-gram connections
-BPTT_ORDER=5
 300 hidden: IN PROGRESS
 
-labels concatenated with words (p0)
+no labels (p0)
 2000MB of 4-gram connections
 BPTT_ORDER=5
 50 hidden: 52.692308% (dev), 48.846154% (test)
-
-labels concatenated with words (p0)
-2000MB of 4-gram connections
-BPTT_ORDER=5
 100 hidden: 54.038462% (dev), 51.346154% (test)
-
-labels concatenated with words (p0)
-2000MB of 4-gram connections
-BPTT_ORDER=5
 200 hidden: 52.692308% (dev), 50.769231% (test)
-
-labels concatenated with words (p0)
-2000MB of 4-gram connections
-BPTT_ORDER=5
 300 hidden: IN PROGRESS
+
+no labels (p0)
+2000MB of 3-gram connections
+BPTT_ORDER=5
+50 hidden: TODO 3
+100 hidden: TODO 4
+200 hidden: TODO 6
+300 hidden: TODO Piotr
+
