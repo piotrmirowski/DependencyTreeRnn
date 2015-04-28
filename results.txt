@@ -100,6 +100,7 @@ gamma=0.5
 50 hidden: 46.730769% (dev), 47.115385% (test)
 100 hidden: 50.000000% (dev), 49.615385% (test)
 200 hidden: 49.807692% (dev), 49.615385% (test)
+ensemble of these: 526923076923% (dev), 0.517307692308 (test)
 300 hidden: IN PROGRESS
 
 no labels (p0)
