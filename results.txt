@@ -9,7 +9,7 @@ BPTT(5) every 1 step
 50 hidden: 29.615385% (dev), 28.076923% (test)
 100 hidden: 30.0000% (dev), 30.0000% (test)
 200 hidden: 30.000000% (dev), 30.384615% (test)
-300 hidden: in progress
+300 hidden: 30.576923% (dev), 28.461538% (test)
 
 
 2000MB of 3-gram connections
@@ -47,7 +47,7 @@ BPTT(5) every 1 step
 50 hidden: 40.192308% (dev), 42.307692% (test)
 100 hidden: 40.576923% (dev), 41.153846% (test)
 200 hidden: 40.000000% (dev), 40.384615% (test)
-300 hidden: in progress
+300 hidden: 40.192308% (dev), 39.230769% (test)
 
 
 
