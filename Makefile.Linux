@@ -45,7 +45,7 @@ $(OBJDIR)/CorpusUnrollsReader.o: $(SRCDIR)/CorpusUnrollsReader.cpp $(INCLUDES)
 $(OBJDIR)/CommandLineParser.o: $(SRCDIR)/CommandLineParser.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
-$(OBJDIR)/Vocbulary.o: $(SRCDIR)/Vocabulary.cpp $(INCLUDES)
+$(OBJDIR)/Vocabulary.o: $(SRCDIR)/Vocabulary.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/RnnWeights.o: $(SRCDIR)/RnnWeights.cpp $(INCLUDES)

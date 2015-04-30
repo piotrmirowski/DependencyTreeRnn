@@ -2,7 +2,7 @@
 
 # This is the path that should be edited,
 # depending on where the JSON books are stored
-PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
+PATH_JSON=$PWD"/../Data/GutenbergHolmes/"
 
 # Get the model file name from the argument and the vocabulary file
 FILE_MODEL=$1

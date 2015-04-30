@@ -1,10 +1,11 @@
+// Copyright (c) 2014 Anonymized. All rights reserved.
 //
-//  Vocabulary.h
-//  DependencyTreeRNN
-//
-//  Created by Piotr Mirowski on 05/03/2015.
-//  Copyright (c) 2015 Piotr Mirowski. All rights reserved.
-//
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
+
+// Based on code by Geoffrey Zweig and Tomas Mikolov
+// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
 
 #ifndef DependencyTreeRNN_Vocabulary_h
 #define DependencyTreeRNN_Vocabulary_h

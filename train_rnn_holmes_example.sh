@@ -2,7 +2,7 @@
 
 # This is the path that should be edited,
 # depending on where the JSON books are stored
-PATH_JSON="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes/"
+PATH_JSON=$PWD"/../Data/GutenbergHolmes/"
 
 # Define the minimum number of word occurrences as 5 and use existing vocabulary file
 MIN_WORD_OCCURRENCE=5

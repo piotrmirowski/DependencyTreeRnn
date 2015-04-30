@@ -1,3 +1,7 @@
+// Note: this code is part of an external library. The copyright notice does
+// not imply that the author of the paper is the owner of the copyright
+// of this file.
+
 // Copyright (c) 2010 Ivan Vashchaev. All rights reserved.
 // Retrieved from: https://code.google.com/p/vjson/
 // Distributed under the MIT license.

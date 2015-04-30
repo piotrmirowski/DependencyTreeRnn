@@ -1,7 +1,11 @@
 '''
-Created on Aug 4, 2014
+// Copyright (c) 2014 Anonymized. All rights reserved.
+//
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
 
-@author: andreasvlachos
+Created on Aug 4, 2014
 
 Take a corpus the JSON format obtained from Stanford  and convert it to this
 

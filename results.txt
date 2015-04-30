@@ -76,7 +76,7 @@ labels as features (p2)
 2000MB of 4-gram connections
 BPTT_ORDER=5
 100 hidden
-gamma=0: TODO Piotr
+gamma=0: TODO
 gamma=0.1: IN PROGRESS
 gamma=0.5: 50.000000% (dev), 49.615385% (test)
 gamma=0.9: IN PROGRESS
@@ -90,7 +90,7 @@ gamma=0.5
 50 hidden: TODO 1
 100 hidden: TODO 2
 200 hidden: TODO 5
-300 hidden: TODO Piotr
+300 hidden: TODO 
 
 
 labels as features (p2)
@@ -117,5 +117,5 @@ BPTT_ORDER=5
 50 hidden: TODO 3
 100 hidden: TODO 4
 200 hidden: TODO 6
-300 hidden: TODO Piotr
+300 hidden: TODO 
 

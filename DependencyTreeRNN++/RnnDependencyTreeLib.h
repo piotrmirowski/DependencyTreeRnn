@@ -1,20 +1,11 @@
-// Copyright (c) 2014-2015 Piotr Mirowski. All rights reserved.
-//                         piotr.mirowski@computer.org
+// Copyright (c) 2014 Anonymized. All rights reserved.
 //
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
+
 // Based on code by Geoffrey Zweig and Tomas Mikolov
 // for the Recurrent Neural Networks Language Model (RNNLM) toolbox
-//
-// Recurrent neural network based statistical language modeling toolkitsize
-// Version 0.3f
-// (c) 2010-2012 Tomas Mikolov (tmikolov@gmail.com)
-// Extensions from 0.3e to 0.3f version done at Microsoft Research
-//
-// This code implements the following paper:
-//   Tomas Mikolov and Geoffrey Zweig
-//   "Context Dependent Recurrent Neural Network Language Model"
-//   Microsoft Research Technical Report MSR-TR-2012-92 July 27th, 2012
-//   IEEE Conference on Spoken Language Technologies
-//   http://research.microsoft.com/apps/pubs/default.aspx?id=176926
 
 #ifndef __DependencyTreeRNN____RnnDependencyTreeLib__
 #define __DependencyTreeRNN____RnnDependencyTreeLib__

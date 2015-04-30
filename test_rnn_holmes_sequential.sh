@@ -2,7 +2,7 @@
 
 # This is the path that should be edited,
 # depending on where the JSON books are stored
-PATH_SEQUENTIAL="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes_Sequential/"
+PATH_SEQUENTIAL=$PWD"/../Data/GutenbergHolmes_Sequential/"
 
 # Get the model filename from the command line
 FILE_MODEL=$1

@@ -1,5 +1,8 @@
-// Copyright (c) 2014 Piotr Mirowski. All rights reserved.
-//                    piotr.mirowski@computer.org
+// Copyright (c) 2014 Anonymized. All rights reserved.
+//
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
 
 #ifndef DependencyTreeRNN___readjson_h
 #define DependencyTreeRNN___readjson_h
