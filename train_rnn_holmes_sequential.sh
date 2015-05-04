@@ -2,7 +2,7 @@
 
 # This is the path that should be edited,
 # depending on where the JSON books are stored
-PATH_SEQUENTIAL="/Users/piotr/Documents/Projets/Microsoft/Data/GutenbergHolmes_Sequential/"
+PATH_SEQUENTIAL=$PWD"/../Data/GutenbergHolmes_Sequential/"
 
 # Define the minimum number of word occurrences as 5 and use existing vocabulary file
 MIN_WORD_OCCURRENCE=5
@@ -47,3 +47,4 @@ RnnDependencyTree \
   -class $RNN_CLASSES \
   -debug $DEBUG_MODE
 #  -vocab $FILE_VOCAB
+
