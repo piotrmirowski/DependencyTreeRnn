@@ -1,5 +1,8 @@
-// Copyright (c) 2014 Piotr Mirowski. All rights reserved.
-//                    piotr.mirowski@computer.org
+// Copyright (c) 2014 Anonymized. All rights reserved.
+//                                               
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
 
 #ifndef __DependencyTreeRNN____CommandLineParser__
 #define __DependencyTreeRNN____CommandLineParser__
@@ -7,8 +10,7 @@
 #include <string>
 #include <map>
 
-class CommandLineArgument
-{
+class CommandLineArgument {
 public:
     
     /// <summary>
@@ -38,18 +40,15 @@ public:
                         std::string desc,
                         std::string d,
                         bool r)
-    : m_type(t), m_description(desc), m_value(d), m_isRequired(r)
-    {
+    : m_type(t), m_description(desc), m_value(d), m_isRequired(r) {
     }
-    CommandLineArgument()
-    {
+    CommandLineArgument() {
         m_type = "UNDEFINED";
     }
 };
 
 
-class CommandLineParser
-{
+class CommandLineParser {
 public:
     /// <summary>
     /// Map between command line argument names and structures containig their values

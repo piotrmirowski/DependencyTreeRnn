@@ -1,5 +1,0 @@
-04TOM10.TXT.json.unrolls.json
-CUBRK10.TXT.json.unrolls.json
-JUSDV10.TXT.json.unrolls.json
-OZLAND10.TXT.json.unrolls.json
-TCONF10.TXT.json.unrolls.json

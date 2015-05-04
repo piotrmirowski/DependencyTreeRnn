@@ -1,6 +1,8 @@
-// Copyright (c) 2014 Piotr Mirowski. All rights reserved.
-//                    piotr.mirowski@computer.org
-// Based on code by Davide Di Gennaro (dadigenn@microsoft.com)
+// Copyright (c) 2014 Anonymized. All rights reserved.
+//                                               
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
 
 #ifndef DependencyTreeRNN___CorpusWordReader_h
 #define DependencyTreeRNN___CorpusWordReader_h

@@ -1,5 +1,3 @@
-package uk.ac.ucl.cs.mr.util;
-
 import edu.stanford.nlp.pipeline.*;
 import edu.stanford.nlp.util.*;
 import edu.stanford.nlp.semgraph.SemanticGraph;

@@ -1,5 +1,8 @@
-// Copyright (c) 2014 Piotr Mirowski. All rights reserved.
-//                    piotr.mirowski@computer.org
+// Copyright (c) 2014 Anonymized. All rights reserved.
+//                    
+// Code submitted as supplementary material for manuscript:
+// "Dependency Recurrent Neural Language Models for Sentence Completion"
+// Do not redistribute.
 
 #include <iostream>
 #include <set>
@@ -14,10 +17,8 @@ char buff[slen];
 /// <summary>
 /// Get a command line argument
 /// </summary>
-bool CommandLineParser::Get(string name, int &value)
-{
-  if (arginfo4.find(name) == arginfo4.end())
-  {
+bool CommandLineParser::Get(string name, int &value) {
+  if (arginfo4.find(name) == arginfo4.end()) {
     cout << name << " must be registered as a parameter before it can be accessed\n";
     return false;
   }
@@ -30,10 +31,8 @@ bool CommandLineParser::Get(string name, int &value)
 /// <summary>
 /// Get a command line argument
 /// </summary>
-bool CommandLineParser::Get(string name, double &value)
-{
-  if (arginfo4.find(name) == arginfo4.end())
-  {
+bool CommandLineParser::Get(string name, double &value) {
+  if (arginfo4.find(name) == arginfo4.end()) {
     cout << name << " must be registered as a parameter before it can be accessed\n";
     return false;
   }
@@ -46,10 +45,8 @@ bool CommandLineParser::Get(string name, double &value)
 /// <summary>
 /// Get a command line argument
 /// </summary>
-bool CommandLineParser::Get(string name, string &value)
-{
-  if (arginfo4.find(name) == arginfo4.end())
-  {
+bool CommandLineParser::Get(string name, string &value) {
+  if (arginfo4.find(name) == arginfo4.end()) {
     cout << name << " must be registered as a parameter before it can be accessed\n";
     return false;
   }
@@ -62,10 +59,8 @@ bool CommandLineParser::Get(string name, string &value)
 /// <summary>
 /// Get a command line argument
 /// </summary>
-bool CommandLineParser::Get(string name, bool &value)
-{
-  if (arginfo4.find(name) == arginfo4.end())
-  {
+bool CommandLineParser::Get(string name, bool &value) {
+  if (arginfo4.find(name) == arginfo4.end()) {
     cout << name << " must be registered as a parameter before it can be accessed\n";
     return false;
   }
@@ -78,10 +73,8 @@ bool CommandLineParser::Get(string name, bool &value)
 /// <summary>
 /// Get a command line argument
 /// </summary>
-bool CommandLineParser::Get(string name, long long &value)
-{
-  if (arginfo4.find(name) == arginfo4.end())
-  {
+bool CommandLineParser::Get(string name, long long &value) {
+  if (arginfo4.find(name) == arginfo4.end()) {
     cout << name << " must be registered as a parameter before it can be accessed\n";
     return false;
   }
@@ -94,24 +87,18 @@ bool CommandLineParser::Get(string name, long long &value)
 /// <summary>
 /// Parse the arguments to extract their values and store them in the map
 /// </summary>
-bool CommandLineParser::Parse(char *list[], int llen)
-{
-  if (llen == 1)
-  {
+bool CommandLineParser::Parse(char *list[], int llen) {
+  if (llen == 1) {
     // Show the arguments
     cout << "Usage: " << list[0]  << "\n";
     for (map<string, CommandLineArgument>::iterator mi = arginfo4.begin();
          mi != arginfo4.end();
-         mi++)
-    {
-      if (!mi->second.m_isRequired)
-      {
+         mi++) {
+      if (!mi->second.m_isRequired) {
         cout << "[-" << mi->first << " ("
         << mi->second.m_type << ": "
         << mi->second.m_value << ")]: " << mi->second.m_description << "\n";
-      }
-      else
-      {
+      } else {
         cout << "-" << mi->first << " ("
         << mi->second.m_type << "): "
         << mi->second.m_description << "\n";
@@ -120,8 +107,7 @@ bool CommandLineParser::Parse(char *list[], int llen)
     return false;
   }
   
-  if ((llen % 2) == 0)
-  {
+  if ((llen % 2) == 0) {
     cout << "Command line must have an even number of elements\n";
     cout << "Check argument structure\n";
     return false;
@@ -129,17 +115,14 @@ bool CommandLineParser::Parse(char *list[], int llen)
   
   // List of seen arguments
   set<string> seen;
-  for (int i = 1; i < llen; i += 2)
-  {
-    if (list[i][0] != '-')
-    {
+  for (int i = 1; i < llen; i += 2) {
+    if (list[i][0] != '-') {
       cout << "Argument names must begin with -\n";
       cout << "Saw: " << list[i] << endl;
       return false;
     }
     string aname(&list[i][1]);
-    if (arginfo4.find(aname) == arginfo4.end())
-    {
+    if (arginfo4.find(aname) == arginfo4.end()) {
       cout << "Unknown parameter on command line: " << aname << endl;
       return false;
     }
@@ -150,10 +133,8 @@ bool CommandLineParser::Parse(char *list[], int llen)
   // check that the required arguments have been seen
   for (map<string, CommandLineArgument>::iterator mi = arginfo4.begin();
        mi != arginfo4.end();
-       mi++)
-  {
-    if (mi->second.m_isRequired && !seen.count(mi->first))
-    {
+       mi++) {
+    if (mi->second.m_isRequired && !seen.count(mi->first)) {
       cout << "Required argument " << mi->first << " not set on command line\n";
       return false;
     }
