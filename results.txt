@@ -12,19 +12,11 @@ BPTT(5) every 1 step
 300 hidden: 30.576923% (dev), 28.461538% (test)
 
 
-2000MB of 3-gram connections
-BPTT(5) every 1 step
-50 hidden: TODO???
-100 hidden: 39.423077% (dev), 40.384615% (test)
-200 hidden: 39.423077% (dev), 40.384615% (test)
-300 hidden: TODO???
-
-
 1000MB of 2-gram connections
 BPTT(5) every 1 step
 50 hidden: 29.615385% (dev), 30.769231% (test)
 100 hidden: 28.653846% (dev), 30.384615% (test)
-200 hidden: TODO
+200 hidden: IN PROGRESS
 300 hidden: IN PROGRESS
 
 
@@ -36,18 +28,38 @@ BPTT(5) every 1 step
 300 hidden: IN PROGRESS
 
 
-1000MB of 3-gram connections
-BPTT(10) every 1 step
-100 hidden: 39.423077% (dev), 40.576923% (test)
--> not interesting
-
-
 1000MB of 4-gram connections
 BPTT(5) every 1 step
 50 hidden: 40.192308% (dev), 42.307692% (test)
 100 hidden: 40.576923% (dev), 41.153846% (test)
 200 hidden: 40.000000% (dev), 40.384615% (test)
 300 hidden: 40.192308% (dev), 39.230769% (test)
+
+
+1000MB of 5-gram connections
+BPTT(5) every 1 step
+50 hidden: 39.807692% (dev), 39.807692% (test)
+100 hidden: IN PROGRESS
+
+
+
+1000MB of 3-gram connections
+BPTT(10) every 1 step
+100 hidden: 39.423077% (dev), 40.576923% (test)
+-> not interesting
+
+
+1000MB of 5-gram connections
+BPTT(10) every 1 step
+50 hidden: 39.807692% (dev), 39.807692% (test)
+-> not interesting
+
+
+2000MB of 3-gram connections
+BPTT(5) every 1 step
+100 hidden: 39.423077% (dev), 40.384615% (test)
+200 hidden: 39.423077% (dev), 40.384615% (test)
+-> run into memory problem all the time
 
 
 
