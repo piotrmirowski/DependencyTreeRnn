@@ -92,15 +92,15 @@ gamma=0: TODO
 gamma=0.1: IN PROGRESS
 gamma=0.5: 50.000000% (dev), 49.615385% (test)
 gamma=0.9: IN PROGRESS
-gamma=1.0: IN PROGRESS
+gamma=1.0: 47.692308% (dev), 47.500000% (test)
 gamma=1.1: IN PROGRESS
 
 labels as features (p2)
 2000MB of 3-gram connections
 BPTT_ORDER=5
 gamma=0.5
-50 hidden: TODO 1
-100 hidden: TODO 2
+50 hidden: 48.653846% (dev), 48.846154% (test)
+100 hidden: 51.538462% (dev), 49.615385% (test)
 200 hidden: TODO 5
 300 hidden: TODO 
 
@@ -126,8 +126,8 @@ BPTT_ORDER=5
 no labels (p0)
 2000MB of 3-gram connections
 BPTT_ORDER=5
-50 hidden: TODO 3
-100 hidden: TODO 4
+50 hidden: 53.269231% (dev), 51.923077% (test)
+100 hidden: 54.230769% (dev), 52.692308% (test)
 200 hidden: TODO 6
 300 hidden: TODO 
 
