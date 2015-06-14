@@ -24,7 +24,7 @@ BPTT(5) every 1 step
 BPTT(5) every 1 step
 50 hidden: 39.2308% (dev), 40.769231% (test)
 100 hidden: 39.423077% (dev), 40.576923% (test)
-200 hidden: IN PROGRESS
+200 hidden: 38.846154% (dev), 40.192308% (test)
 300 hidden: IN PROGRESS
 
 
