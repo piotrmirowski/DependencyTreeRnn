@@ -192,10 +192,9 @@ public:
   void Reset() {
     m_steps = 0;
     History.assign(m_bpttSteps + m_bpttBlock + 10, -1);
+    FeatureLayer.assign((m_bpttSteps + m_bpttBlock + 2) * m_sizeFeature, 0);
     HiddenLayer.assign((m_bpttSteps + m_bpttBlock + 1) * m_sizeHidden, 0);
     HiddenGradient.assign((m_bpttSteps + m_bpttBlock + 1) * m_sizeHidden, 0);
-    FeatureLayer.assign((m_bpttSteps + m_bpttBlock + 2) * m_sizeFeature, 0);
-    FeatureGradient.assign((m_bpttSteps + m_bpttBlock + 2) * m_sizeFeature, 0);
   }
 
 
@@ -203,14 +202,14 @@ public:
    * Shift the BPTT memory by one
    */
   void Shift(int lastWord) {
-    // Shift memory needed for BPTT to next time step
     if (m_bpttSteps > 0) {
-      // shift memory needed for bptt to next time step
+      // Shift the history of words
       for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
         History[a] = History[a - 1];
       }
       History[0] = lastWord;
 
+      // Shift the history of hidden layer activations
       for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
         for (int b = 0; b < m_sizeHidden; b++) {
           HiddenLayer[a * m_sizeHidden + b] =
@@ -220,10 +219,11 @@ public:
         }
       }
 
+      // Shift the history of feature activations
       for (int a = m_bpttSteps + m_bpttBlock - 1; a > 0; a--) {
         for (int b = 0; b < m_sizeFeature; b++) {
-          FeatureLayer[a * m_sizeFeature+b] =
-          FeatureLayer[(a - 1) * m_sizeFeature+b];
+          FeatureLayer[a * m_sizeFeature + b] =
+          FeatureLayer[(a - 1) * m_sizeFeature + b];
         }
       }
     }
@@ -235,14 +235,12 @@ public:
 
   // Word history
   std::vector<int> History;
+  // History of feature inputs
+  std::vector<double> FeatureLayer;
   // History of hidden layer inputs
   std::vector<double> HiddenLayer;
   // History of gradients to the hidden layer
   std::vector<double> HiddenGradient;
-  // History of feature inputs
-  std::vector<double> FeatureLayer;
-  // History of gradients to the feature layer
-  std::vector<double> FeatureGradient;
   // Gradients to the weights, to be added to the SGD gradients
   std::vector<double> WeightsInput2Hidden;
   std::vector<double> WeightsRecurrent2Hidden;

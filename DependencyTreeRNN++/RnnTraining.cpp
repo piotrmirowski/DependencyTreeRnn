@@ -259,9 +259,8 @@ void RnnLMTraining::ResetAllRnnActivations(RnnState &state) const {
   state.OutputLayer.assign(GetOutputSize(), 0.0);
   state.OutputGradient.assign(GetOutputSize(), 0.0);
   
-  // Reset the feature vector and its gradients
+  // Reset the vector of feature vectors
   state.FeatureLayer.assign(GetFeatureSize(), 0.0);
-  state.FeatureGradient.assign(GetFeatureSize(), 0.0);
 }
 
 
@@ -545,16 +544,18 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
                               sizeVocabulary,
                               sizeOutput);
   }
-  
+
   if (m_numBpttSteps <= 1) {
-    // bptt==1 -> normal BP
+    // If BPTT == 1, do normal BP
+
+    // Gradient w.r.t. hidden layer
     for (int a = 0; a < sizeHidden; a++) {
       double dLdSa = m_state.HiddenLayer[a];
-      m_state.HiddenGradient[a] = m_state.HiddenGradient[a] * dLdSa * (1 - dLdSa);
-      // error derivation at layer 1
+      m_state.HiddenGradient[a] =
+      m_state.HiddenGradient[a] * dLdSa * (1 - dLdSa);
     }
     
-    // weight update hidden(t) -> input(t)
+    // Backprop and weight update hidden(t) -> input(t)
     int a = contextWord;
     if (a != -1) {
       for (int b = 0; b < sizeHidden; b++) {
@@ -565,7 +566,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
       }
     }
     
-    // weight update hidden(t) -> hidden(t-1)
+    // Backprop and weight update hidden(t) -> hidden(t-1)
     MultiplyMatrixXmatrixBlas(m_state.HiddenGradient,
                               m_state.RecurrentLayer,
                               m_weights.Recurrent2Hidden,
@@ -577,7 +578,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
                               0,
                               sizeHidden);
     
-    // weight update hidden(t) -> feature(t)
+    // Backprop and weight update hidden(t) -> feature(t)
     MultiplyMatrixXmatrixBlas(m_state.HiddenGradient,
                               m_state.FeatureLayer,
                               m_weights.Features2Hidden,
@@ -603,27 +604,25 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
     if (((m_wordCounter % m_bpttBlockSize) == 0) ||
         (m_areSentencesIndependent && (word == 0))) {
       for (int step = 0; step < m_bpttVectors.NumSteps() - 2; step++) {
+        // Gradient w.r.t. hidden layer
         for (int a = 0; a < sizeHidden; a++) {
           double dLdSa = m_state.HiddenLayer[a];
-          m_state.HiddenGradient[a] = m_state.HiddenGradient[a] * dLdSa * (1 - dLdSa);
-          // error derivation at layer 1
+          m_state.HiddenGradient[a] =
+          m_state.HiddenGradient[a] * dLdSa * (1 - dLdSa);
         }
-        
+
         if (sizeFeature > 0) {
-          // weight update hidden(t) -> feature(t)
-          MultiplyMatrixXmatrixBlas(m_state.HiddenGradient,
-                                    m_state.FeatureLayer,
-                                    m_bpttVectors.WeightsFeature2Hidden,
-                                    alpha,
-                                    1.0,
-                                    sizeHidden,
-                                    1,
-                                    sizeFeature,
-                                    0,
-                                    sizeHidden);
+          // Backprop and weight update hidden(t) -> feature(t)
+          for (int b = 0; b < sizeHidden; b++) {
+            for (int a = 0; a < sizeFeature; a++) {
+              m_bpttVectors.WeightsFeature2Hidden[a + b * sizeFeature] +=
+              alpha * m_state.HiddenGradient[b] *
+              m_bpttVectors.FeatureLayer[a + step * sizeFeature];
+            }
+          }
         }
-        
-        // weight update hidden -> input
+
+        // Backprop and weight update hidden -> input
         int a = m_bpttVectors.History[step];
         if (a != -1) {
           for (int b = 0; b < sizeHidden; b++)
@@ -633,7 +632,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
           }
         }
         
-        // weight update hidden -> recurrent
+        // Backprop and weight update hidden -> recurrent
         m_state.HiddenGradient.assign(sizeHidden, 0);
         GradientMatrixXvectorBlas(m_state.RecurrentGradient,
                                   m_state.HiddenGradient,
@@ -653,16 +652,15 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
                                   0,
                                   sizeHidden);
         
+        // Backpropagate error from time T-n to T-n-1
         for (int a = 0; a < sizeHidden; a++) {
-          // propagate error from time T-n to T-n-1
           m_state.HiddenGradient[a] =
           m_state.RecurrentGradient[a] +
           m_bpttVectors.HiddenGradient[(step+1) * sizeHidden+a];
         }
         
         if (step < m_bpttVectors.NumSteps() - 3) {
-          for (int a = 0; a < sizeHidden; a++)
-          {
+          for (int a = 0; a < sizeHidden; a++) {
             m_state.HiddenLayer[a] =
             m_bpttVectors.HiddenLayer[(step+1) * sizeHidden+a];
             m_state.RecurrentLayer[a] =
@@ -670,17 +668,18 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
           }
         }
       }
-      
+
+      // Reset BPTT accumulated gradients
       for (int a = 0; a < m_bpttVectors.NumSteps() * sizeHidden; a++) {
         m_bpttVectors.HiddenGradient[a] = 0;
       }
       
+      // Restore hidden layer after BPTT
       for (int b = 0; b < sizeHidden; b++) {
         m_state.HiddenLayer[b] = m_bpttVectors.HiddenLayer[b];
-        // restore hidden layer after bptt
       }
       
-      //
+      // Weight update for recurrent weights, using BPTT accumulated gradients
       AddMatrixToMatrixBlas(m_bpttVectors.WeightsRecurrent2Hidden,
                             m_weights.Recurrent2Hidden,
                             1.0,
@@ -689,6 +688,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
                             sizeHidden);
       m_bpttVectors.WeightsRecurrent2Hidden.assign(sizeHidden * sizeHidden, 0);
       
+      // Weight update for feature-hidden weights, using BPTT accumulated grads
       if (sizeFeature > 0) {
         AddMatrixToMatrixBlas(m_bpttVectors.WeightsFeature2Hidden,
                               m_weights.Features2Hidden,
@@ -699,6 +699,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
         m_bpttVectors.WeightsFeature2Hidden.assign(sizeHidden * sizeFeature, 0);
       }
       
+      // Weight update for input weights, using BPTT accumulated gradients
       for (int step = 0; step < m_bpttVectors.NumSteps() - 2; step++) {
         int wordAtStep = m_bpttVectors.History[step];
         if (wordAtStep != -1) {

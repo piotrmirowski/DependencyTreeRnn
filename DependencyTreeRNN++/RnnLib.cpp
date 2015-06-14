@@ -625,6 +625,7 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
   // possibly sorted by the n-gram frequency.
   // It would be nice to make that change (and perhaps retrain old models).
   int sizeDirectConnection = GetNumDirectConnection();
+  int sizeDirectConnectionBy2 = sizeDirectConnection / 2;
   int orderDirectConnection = GetOrderDirectConnection();
   if (sizeDirectConnection > 0) {
     // this will hold pointers to m_weightDataMain.weightsDirect
@@ -643,12 +644,14 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
       }
       hash[a] = c_Primes[0] * c_Primes[1];
       for (b = 1; b <= a; b++) {
-        hash[a] += c_Primes[(a * c_Primes[b] + b) % c_PrimesSize] * (unsigned long long)(state.WordHistory[b-1] + 1);
+        hash[a] += c_Primes[(a * c_Primes[b] + b) % c_PrimesSize] *
+        (unsigned long long)(state.WordHistory[b-1] + 1);
         // update hash value based on words from the history
       }
       // make sure that starting hash index is in the first half
-      // of m_weightDataMain.weightsDirect (second part is reserved for history->words features)
-      hash[a] = hash[a] % (sizeDirectConnection/2);
+      // of m_weightDataMain.weightsDirect
+      // (second part is reserved for history->words features)
+      hash[a] = hash[a] % sizeDirectConnectionBy2;
     }
     for (int a = sizeVocabulary; a < sizeOutput; a++) {
       for (int b = 0; b < orderDirectConnection; b++) {
@@ -760,8 +763,8 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
   }
 
   // Apply direct connections to words
-  // TODO: clean-up that mess...
   int sizeDirectConnection = GetNumDirectConnection();
+  int sizeDirectConnectionBy2 = sizeDirectConnection / 2;
   int orderDirectConnection = GetOrderDirectConnection();
   if (sizeDirectConnection > 0) {
     unsigned long long hash[c_maxNGramOrder];
@@ -773,11 +776,12 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
       if ((a > 0) && (state.WordHistory[a-1] == -1)) {
         break;
       }
-      hash[a] = c_Primes[0]*c_Primes[1]*(unsigned long long)(targetClass+1);
+      hash[a] = c_Primes[0] * c_Primes[1] * (unsigned long long)(targetClass+1);
       for (b = 1; b <= a; b++) {
-        hash[a] += c_Primes[(a*c_Primes[b]+b)%c_PrimesSize]*(unsigned long long)(state.WordHistory[b-1]+1);
+        hash[a] += c_Primes[(a * c_Primes[b] + b) % c_PrimesSize] *
+        (unsigned long long)(state.WordHistory[b-1] + 1);
       }
-      hash[a] = (hash[a] % (sizeDirectConnection/2)) + (sizeDirectConnection)/2;
+      hash[a] = (hash[a] % sizeDirectConnectionBy2) + sizeDirectConnectionBy2;
     }
     for (int c = 0; c < targetClassCount; c++) {
       int a = m_vocab.GetNthWordInClass(targetClass, c);
@@ -785,7 +789,7 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
         if (hash[b]) {
           state.OutputLayer[a] += m_weights.DirectNGram[hash[b]];
           hash[b]++;
-          hash[b] = hash[b]%sizeDirectConnection;
+          hash[b] = hash[b] % sizeDirectConnection;
         } else {
           break;
         }
@@ -875,9 +879,6 @@ void RnnLM::ForwardPropagateWordHistory(RnnState &state,
  * The feature vector f(t) is then simply an autoregressive
  * (exponentially decaying) function of the topic model vectors
  * for each word in the history.
- * This works well when processing sentence in English but might not
- * be appropriate for short queries, since the topic feature
- * will be continuously reset.
  */
 void RnnLM::UpdateFeatureVectorUsingTopicModel(int word,
                                                RnnState &state) const {
