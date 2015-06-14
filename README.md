@@ -1,6 +1,13 @@
 # DependencyTreeRnn
 Dependency tree-based RNN
 
+Copyright (c) 2014-2015 Piotr Mirowski
+
+Please refer to the following paper:
+Piotr Mirowski, Andreas Vlachos
+"Dependency Recurrent Neural Language Models for Sentence Completion"
+ACL 2015
+
 # Installation
 1. Modify the path to the BLAS header (cblas.h) file, i.e., $BLASINCLUDE
    and the BLAS path, i.e., $BLASFLAGS, in file Makefile.
