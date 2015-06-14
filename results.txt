@@ -122,7 +122,7 @@ BPTT_ORDER=5
 50 hidden: 52.692308% (dev), 48.846154% (test)
 100 hidden: 54.038462% (dev), 51.346154% (test)
 200 hidden: 52.692308% (dev), 50.769231% (test)
-300 hidden: IN PROGRESS
+300 hidden: 
 
 no labels (p0)
 2000MB of 3-gram connections
@@ -130,5 +130,12 @@ BPTT_ORDER=5
 50 hidden: 53.269231% (dev), 51.923077% (test)
 100 hidden: 54.230769% (dev), 52.692308% (test)
 200 hidden: 54.230769% (dev), 51.923077% (test)
-300 hidden: TODO 
+300 hidden: 53.269231% (dev), 52.884615% (test)
 
+no labels (p0)
+2000MB of 2-gram connections
+BPTT_ORDER=5
+50 hidden: 48.653846% (dev), 45.000000% (test)
+100 hidden: 48.653846% (dev), 47.500000% (test)
+200 hidden: 48.653846% (dev), 45.576923% (test)
+300 hidden: IN PROGRESS
