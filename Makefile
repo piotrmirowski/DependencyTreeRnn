@@ -13,25 +13,17 @@ INCLUDES = $(BLASINCLUDE) $(SRCDIR)/*.h
 
 OBJDIR = build
 
-OBJ = $(OBJDIR)/block_allocator.o \
-      $(OBJDIR)/json.o \
-      $(OBJDIR)/ReadJson.o \
-      $(OBJDIR)/CorpusUnrollsReader.o \
-      $(OBJDIR)/CommandLineParser.o \
-      $(OBJDIR)/Vocabulary.o \
-      $(OBJDIR)/RnnWeights.o \
-      $(OBJDIR)/RnnLib.o \
-      $(OBJDIR)/RnnTraining.o \
-      $(OBJDIR)/RnnDependencyTreeLib.o \
-      $(OBJDIR)/main.o
+OBJ =	$(OBJDIR)/ReadJson.o \
+	$(OBJDIR)/CorpusUnrollsReader.o \
+	$(OBJDIR)/CommandLineParser.o \
+	$(OBJDIR)/Vocabulary.o \
+	$(OBJDIR)/RnnWeights.o \
+	$(OBJDIR)/RnnLib.o \
+	$(OBJDIR)/RnnTraining.o \
+	$(OBJDIR)/RnnDependencyTreeLib.o \
+	$(OBJDIR)/main.o
 
 all: $(OBJ) RnnDependencyTree
-
-$(OBJDIR)/block_allocator.o: $(SRCDIR)/block_allocator.cpp $(INCLUDES)
-	$(CC) $(CXXFLAGS) -c -o $@ $<
-
-$(OBJDIR)/json.o: $(SRCDIR)/json.cpp $(INCLUDES)
-	$(CC) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/ReadJson.o: $(SRCDIR)/ReadJson.cpp $(INCLUDES)
 	$(CC) $(CXXFLAGS) -c -o $@ $<
