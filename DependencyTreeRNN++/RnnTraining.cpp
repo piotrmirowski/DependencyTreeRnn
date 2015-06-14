@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,11 +58,11 @@ extern "C" {
 using namespace std;
 
 
-/// <summary>
-/// Get the next token (word or multi-word entity) from a text file
-/// and return it as an integer in the vocabulary vector.
-/// Returns -1 for OOV words and -2 for end of file.
-/// </summary>
+/**
+ * Get the next token (word or multi-word entity) from a text file
+ * and return it as an integer in the vocabulary vector.
+ * Returns -1 for OOV words and -2 for end of file.
+ */
 int RnnLMTraining::ReadWordIndexFromFile(WordReader &reader) {
   std::string word = reader.get_next();
   // We return -2 if end of file, not to confuse with -1 for OOV words
@@ -47,15 +74,14 @@ int RnnLMTraining::ReadWordIndexFromFile(WordReader &reader) {
 }
 
 
-/// <summary>
-/// Before learning the RNN model, we need to learn the vocabulary
-/// from the corpus. Note that the word classes may have been initialized
-/// beforehand using ReadClasses. Computes the unigram distribution
-/// of words from a training file, assuming that the existing vocabulary
-/// is empty.
-/// </summary>
-bool RnnLMTraining::LearnVocabularyFromTrainFile(int numClasses)
-{
+/**
+ * Before learning the RNN model, we need to learn the vocabulary
+ * from the corpus. Note that the word classes may have been initialized
+ * beforehand using ReadClasses. Computes the unigram distribution
+ * of words from a training file, assuming that the existing vocabulary
+ * is empty.
+ */
+bool RnnLMTraining::LearnVocabularyFromTrainFile(int numClasses) {
   // We cannot use a class file... (classes need to be frequency-based)
   if (m_usesClassFile) {
     cerr << "Class files not implemented\n";
@@ -119,11 +145,10 @@ bool RnnLMTraining::LearnVocabularyFromTrainFile(int numClasses)
 }
 
 
-/// <summary>
-/// Once we train the RNN model, it is nice to save it to a text or binary file
-/// </summary>
-bool RnnLMTraining::SaveRnnModelToFile()
-{
+/**
+ * Once we train the RNN model, it is nice to save it to a text or binary file
+ */
+bool RnnLMTraining::SaveRnnModelToFile() {
   FILE *fo = fopen(m_rnnModelFile.c_str(), "wb");
   if (fo == NULL) {
     printf("Cannot create file %s\n", m_rnnModelFile.c_str());
@@ -199,12 +224,11 @@ bool RnnLMTraining::SaveRnnModelToFile()
 }
 
 
-/// <summary>
-/// Cleans all activations and error vectors, in the input, hidden,
-/// compression, feature and output layers, and resets word history
-/// </summary>
-void RnnLMTraining::ResetAllRnnActivations(RnnState &state) const
-{
+/**
+ * Cleans all activations and error vectors, in the input, hidden,
+ * compression, feature and output layers, and resets word history
+ */
+void RnnLMTraining::ResetAllRnnActivations(RnnState &state) const {
   // Completely reset the input layer and its gradients
   state.InputLayer.assign(GetInputSize(), 0.0);
   state.InputGradient.assign(GetInputSize(), 0.0);
@@ -241,12 +265,12 @@ void RnnLMTraining::ResetAllRnnActivations(RnnState &state) const
 }
 
 
-/// <summary>
-/// One step of backpropagation of the errors through the RNN
-/// (optionally, backpropagation through time, BPTT) and of gradient descent.
-/// </summary>
-void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWord, int word)
-{
+/**
+ * One step of backpropagation of the errors through the RNN
+ * (optionally, backpropagation through time, BPTT) and of gradient descent.
+ */
+void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWord,
+                                                                  int word) {
   // No learning step if OOV word
   if (word == -1) {
     return;
@@ -305,27 +329,6 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
   // learn direct connections between words
   if (sizeDirectConnection > 0) {
     if (word != -1) {
-#ifdef USE_HASHTABLES
-      for (int c = 0; c < numWordsInClass; c++) {
-        int wordInClass = m_vocab.GetNthWordInClass(targetClass, c);
-        WordTripleKey key3(wordInClass, m_state.WordHistory[0], m_state.WordHistory[1]);
-        if (key3.isValid()) {
-          if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
-            m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
-          }
-          m_weights.DirectTriGram[key3] +=
-          alpha * m_state.OutputGradient[wordInClass] - beta * m_weights.DirectTriGram[key3];
-        }
-        WordPairKey key2(wordInClass, m_state.WordHistory[0]);
-        if (key2.isValid()) {
-          if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
-            m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
-          }
-          m_weights.DirectBiGram[key2] +=
-          alpha * m_state.OutputGradient[wordInClass] - beta * m_weights.DirectBiGram[key2];
-        }
-      }
-#else
       unsigned long long hash[c_maxNGramOrder];
       for (int a = 0; a < orderDirectConnection; a++) {
         hash[a] = 0;
@@ -354,32 +357,11 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
           }
         }
       }
-#endif
     }
   }
   //
   // learn direct connections to classes
   if (sizeDirectConnection > 0) {
-#ifdef USE_HASHTABLES
-    for (int c = sizeVocabulary; c < sizeOutput; c++) {
-      WordTripleKey key3(c, m_state.WordHistory[0], m_state.WordHistory[1]);
-      if (key3.isValid()) {
-        if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
-          m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
-        }
-        m_weights.DirectTriGram[key3] +=
-        alpha * m_state.OutputGradient[c] - beta * m_weights.DirectTriGram[key3];
-      }
-      WordPairKey key2(c, m_state.WordHistory[0]);
-      if (key2.isValid()) {
-        if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
-          m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
-        }
-        m_weights.DirectBiGram[key2] +=
-        alpha * m_state.OutputGradient[c] - beta * m_weights.DirectBiGram[key2];
-      }
-    }
-#else
     unsigned long long hash[c_maxNGramOrder] = {0};
     for (int a = 0; a < orderDirectConnection; a++) {
       int b = 0;
@@ -401,7 +383,6 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
         }
       }
     }
-#endif
   }
   
   if (sizeCompress > 0) {
@@ -736,11 +717,10 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
 }
 
 
-/// <summary>
-/// Train a Recurrent Neural Network model on a test file
-/// </summary>
-bool RnnLMTraining::TrainRnnModel()
-{
+/**
+ * Train a Recurrent Neural Network model on a test file
+ */
+bool RnnLMTraining::TrainRnnModel() {
   // Reset the log-likelihood to ginourmous value
   double lastValidLogProbability = -1E37;
   double lastValidAccuracy = 0;
@@ -950,17 +930,16 @@ bool RnnLMTraining::TrainRnnModel()
 }
 
 
-/// <summary>
-/// Test a Recurrent Neural Network model on a test file
-/// </summary>
+/**
+ * Test a Recurrent Neural Network model on a test file
+ */
 bool RnnLMTraining::TestRnnModel(const string &testFile,
                                  const string &featureFile,
                                  vector<double> &sentenceScores,
                                  double &logProbability,
                                  double &perplexity,
                                  double &entropy,
-                                 double &accuracy)
-{
+                                 double &accuracy) {
   Log("RnnTrainingLM::testNet()\n");
 
   // Scores file
@@ -1122,11 +1101,10 @@ bool RnnLMTraining::TestRnnModel(const string &testFile,
 }
 
 
-/// <summary>
-/// Load a file containing the classification labels
-/// </summary>
-void RnnLMTraining::LoadCorrectSentenceLabels(const std::string &labelFile)
-{
+/**
+ * Load a file containing the classification labels
+ */
+void RnnLMTraining::LoadCorrectSentenceLabels(const std::string &labelFile) {
   m_correctSentenceLabels.clear();
   ifstream file(labelFile, ifstream::in);
   int label = 0;
@@ -1139,13 +1117,12 @@ void RnnLMTraining::LoadCorrectSentenceLabels(const std::string &labelFile)
 }
 
 
-/// <summary>
-/// Compute the accuracy of selecting the top candidate (based on score)
-/// among n-best lists
-/// </summary>
+/**
+ * Compute the accuracy of selecting the top candidate (based on score)
+ * among n-best lists
+ */
 double RnnLMTraining::AccuracyNBestList(std::vector<double> scores,
-                                        std::vector<int> &correctLabels) const
-{
+                                        std::vector<int> &correctLabels) const {
   // Size of the n-best list
   int numSentences = (int)(correctLabels.size());
   assert(scores.size() % numSentences == 0);
@@ -1174,15 +1151,14 @@ double RnnLMTraining::AccuracyNBestList(std::vector<double> scores,
 }
 
 
-/// <summary>
-/// Read the feature vector for the current word
-/// in the train/test/valid file and update the feature vector
-/// in the state
-/// TODO: convert to ifstream
-/// </summary>
+/**
+ * Read the feature vector for the current word
+ * in the train/test/valid file and update the feature vector
+ * in the state
+ * TODO: convert to ifstream
+ */
 bool RnnLMTraining::LoadFeatureVectorAtCurrentWord(FILE *f,
-                                                   RnnState &state)
-{
+                                                   RnnState &state) {
   int sizeFeature = GetFeatureSize();
   for (int a = 0; a < sizeFeature; a++) {
     float fl;
@@ -1196,11 +1172,10 @@ bool RnnLMTraining::LoadFeatureVectorAtCurrentWord(FILE *f,
 }
 
 
-/// <summary>
-/// Simply write the word projections/embeddings to a text file.
-/// </summary>
-void RnnLMTraining::SaveWordEmbeddings(const string &filename)
-{
+/**
+ * Simply write the word projections/embeddings to a text file.
+ */
+void RnnLMTraining::SaveWordEmbeddings(const string &filename) {
   FILE *fid = fopen(filename.c_str(), "wb");
   
   fprintf(fid, "%d %d\n", GetVocabularySize(), GetHiddenSize());
@@ -1217,21 +1192,20 @@ void RnnLMTraining::SaveWordEmbeddings(const string &filename)
 }
 
 
-/// <summary>
-/// Matrix-vector multiplication routine, somewhat accelerated using loop
-/// unrolling over 8 registers. Computes x <- x + A' * y,
-/// i.e., the "inverse" operation to y = A * x (adding the result to x)
-/// where A is of size N x M, x is of length M and y is of length N.
-/// The operation can done on a contiguous subset of indices
-/// j in [idxYFrom, idxYTo[ of vector y.
-/// </summary>
+/**
+ * Matrix-vector multiplication routine, somewhat accelerated using loop
+ * unrolling over 8 registers. Computes x <- x + A' * y,
+ * i.e., the "inverse" operation to y = A * x (adding the result to x)
+ * where A is of size N x M, x is of length M and y is of length N.
+ * The operation can done on a contiguous subset of indices
+ * j in [idxYFrom, idxYTo[ of vector y.
+ */
 void RnnLMTraining::GradientMatrixXvectorBlas(vector<double> &vectorX,
                                               vector<double> &vectorY,
                                               vector<double> &matrixA,
                                               int widthMatrix,
                                               int idxYFrom,
-                                              int idxYTo) const
-{
+                                              int idxYTo) const {
   double *vecX = &vectorX[0];
   int idxAFrom = idxYFrom * widthMatrix;
   double *matA = &matrixA[idxAFrom];
@@ -1256,12 +1230,12 @@ void RnnLMTraining::GradientMatrixXvectorBlas(vector<double> &vectorX,
 }
 
 
-/// <summary>
-/// Matrix-matrix multiplication routine using BLAS.
-/// Computes C <- alpha * A * B + beta * C.
-/// The operation can done on a contiguous subset of row indices
-/// j in [idxRowCFrom, idxRowCTo[ in matrix A and C.
-/// </summary>
+/**
+ * Matrix-matrix multiplication routine using BLAS.
+ * Computes C <- alpha * A * B + beta * C.
+ * The operation can done on a contiguous subset of row indices
+ * j in [idxRowCFrom, idxRowCTo[ in matrix A and C.
+ */
 void RnnLMTraining::MultiplyMatrixXmatrixBlas(std::vector<double> &matrixA,
                                               std::vector<double> &matrixB,
                                               std::vector<double> &matrixC,
@@ -1271,8 +1245,7 @@ void RnnLMTraining::MultiplyMatrixXmatrixBlas(std::vector<double> &matrixA,
                                               int numRowsB,
                                               int numColsC,
                                               int idxRowCFrom,
-                                              int idxRowCTo) const
-{
+                                              int idxRowCTo) const {
   int idxCFrom = idxRowCFrom * numColsC;
   int idxAFrom = idxRowCFrom * numRowsB;
   int heighMatrixAC = idxRowCTo - idxRowCFrom;
@@ -1287,17 +1260,16 @@ void RnnLMTraining::MultiplyMatrixXmatrixBlas(std::vector<double> &matrixA,
 }
 
 
-/// <summary>
-/// Matrix-matrix or vector-vector addition routine using BLAS.
-/// Computes Y <- alpha * X + beta * Y.
-/// </summary>
+/**
+ * Matrix-matrix or vector-vector addition routine using BLAS.
+ * Computes Y <- alpha * X + beta * Y.
+ */
 void RnnLMTraining::AddMatrixToMatrixBlas(std::vector<double> &matrixX,
                                           std::vector<double> &matrixY,
                                           double alpha,
                                           double beta,
                                           int numRows,
-                                          int numCols) const
-{
+                                          int numCols) const {
   double *matX = &matrixX[0];
   double *matY = &matrixY[0];
   int numElem = numRows * numCols;

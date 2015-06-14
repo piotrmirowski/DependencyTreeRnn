@@ -1,8 +1,8 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
-//                                               
-// Code submitted as supplementary material for manuscript:
+// Copyright (c) 2014-2015 Piotr Mirowski
+//
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 #ifndef DependencyTreeRNN___CorpusWordReader_h
 #define DependencyTreeRNN___CorpusWordReader_h
@@ -17,10 +17,10 @@ inline bool isSpace(char c) { return isspace(c); };
 inline bool notIsSpace(char c) { return !isspace(c); };
 
 
-/// <summary>
-/// Simple class to read words, one by one, from a file.
-/// When the end of a line is reached, it returns "</s>"
-/// </summary>
+/**
+ * Simple class to read words, one by one, from a file.
+ * When the end of a line is reached, it returns "</s>"
+ */
 class WordReader {
 protected:
   std::ifstream m_file;

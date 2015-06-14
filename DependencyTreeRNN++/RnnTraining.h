@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef __DependencyTreeRNN____RnnTraining__
 #define __DependencyTreeRNN____RnnTraining__
@@ -20,17 +47,17 @@
 #include "RnnState.h"
 
 
-/// <summary>
-/// Main class training and testing the RNN model,
-/// not supposed at all to run in a production online environment
-/// (not thread-safe).
-/// </summary>
+/**
+ * Main class training and testing the RNN model,
+ * not supposed at all to run in a production online environment
+ * (not thread-safe).
+ */
 class RnnLMTraining : public RnnLM {
 public:
   
-  /// <summary>
-  /// Constructor for training the model
-  /// </summary>
+  /**
+   * Constructor for training the model
+   */
   RnnLMTraining(const std::string &filename, bool doLoadModel, bool debugMode)
   // We load the RNN or not, depending on whether the model file is present
   // otherwise simply set its filename
@@ -109,18 +136,18 @@ public:
   
 public:
   
-  /// <summary>
-  /// Main function to train the RNN model
-  /// </summary>
+  /**
+   * Main function to train the RNN model
+   */
   virtual bool TrainRnnModel();
   
-  /// <summary>
-  /// Before learning the RNN model, we need to learn the vocabulary
-  /// from the corpus. Note that the word classes may have been initialized
-  /// beforehand using ReadClasses. Computes the unigram distribution
-  /// of words from a training file, assuming that the existing vocabulary
-  /// is empty.
-  /// </summary>
+  /**
+   * Before learning the RNN model, we need to learn the vocabulary
+   * from the corpus. Note that the word classes may have been initialized
+   * beforehand using ReadClasses. Computes the unigram distribution
+   * of words from a training file, assuming that the existing vocabulary
+   * is empty.
+   */
   virtual bool LearnVocabularyFromTrainFile(int numClasses);
   
 
@@ -131,29 +158,29 @@ public:
     m_minWordOccurrences = val;
   }
 
-  /// <summary>
-  /// Read the classes from a file in the following format:
-  /// word [TAB] class_index
-  /// where class index is between 0 and n-1 and there are n classes.
-  /// </summary>
+  /**
+   * Read the classes from a file in the following format:
+   * word [TAB] class_index
+   * where class index is between 0 and n-1 and there are n classes.
+   */
   bool ReadClasses(const std::string &filename) {
     m_usesClassFile = m_vocab.ReadClasses(filename);
     return m_usesClassFile;
   }
   
-  /// <summary>
-  /// Once we train the RNN model, it is nice to save it to a text or binary file
-  /// </summary>
+  /**
+   * Once we train the RNN model, it is nice to save it to a text or binary file
+   */
   bool SaveRnnModelToFile();
   
-  /// <summary>
-  /// Simply write the word projections/embeddings to a text file.
-  /// </summary>
+  /**
+   * Simply write the word projections/embeddings to a text file.
+   */
   void SaveWordEmbeddings(const std::string &filename);
   
-  /// <summary>
-  /// Main function to test the RNN model
-  /// </summary>
+  /**
+   * Main function to test the RNN model
+   */
   virtual bool TestRnnModel(const std::string &testFile,
                             const std::string &featureFile,
                             std::vector<double> &sentenceScores,
@@ -162,70 +189,70 @@ public:
                             double &entropy,
                             double &accuracy);
   
-  /// <summary>
-  /// Load a file containing the classification labels
-  /// </summary>
+  /**
+   * Load a file containing the classification labels
+   */
   void LoadCorrectSentenceLabels(const std::string &labelFile);
   
 protected:
   
-  /// <summary>
-  /// Get the next token (word or multi-word entity) from a text file
-  /// and return it as an integer in the vocabulary vector.
-  /// Returns -1 for OOV words and -2 for end of file.
-  /// </summary>
+  /**
+   * Get the next token (word or multi-word entity) from a text file
+   * and return it as an integer in the vocabulary vector.
+   * Returns -1 for OOV words and -2 for end of file.
+   */
   int ReadWordIndexFromFile(WordReader &reader);
   
-  /// <summary>
-  /// Sort the vocabulary by decreasing count of words in the corpus
-  /// (used for frequency-based word classes, where class 0 contains
-  /// </s>, class 1 contains {the} or another, most frequent token,
-  /// class 2 contains a few very frequent tokens, etc...
-  /// </summary>
+  /**
+   * Sort the vocabulary by decreasing count of words in the corpus
+   * (used for frequency-based word classes, where class 0 contains
+   * </s>, class 1 contains {the} or another, most frequent token,
+   * class 2 contains a few very frequent tokens, etc...
+   */
   void SortVocabularyByFrequency();
   
-  /// <summary>
-  /// Sort the words by class, in increasing class order
-  /// (used when the classes are provided by an external tools,
-  /// e.g., based on maximum entropy features on word bigrams)
-  /// </summary>
+  /**
+   * Sort the words by class, in increasing class order
+   * (used when the classes are provided by an external tools,
+   * e.g., based on maximum entropy features on word bigrams)
+   */
   void SortVocabularyByClass();
   
-  /// <summary>
-  /// One step of backpropagation of the errors through the RNN
-  /// (optionally, backpropagation through time, BPTT) and of gradient descent.
-  /// </summary>
+  /**
+   * One step of backpropagation of the errors through the RNN
+   * (optionally, backpropagation through time, BPTT) and of gradient descent.
+   */
   void BackPropagateErrorsThenOneStepGradientDescent(int last_word, int word);
   
-  /// <summary>
-  /// Read the feature vector for the current word
-  /// in the train/test/valid file and update the feature vector
-  /// in the state
-  /// TODO: convert to ifstream
-  /// </summary>
+  /**
+   * Read the feature vector for the current word
+   * in the train/test/valid file and update the feature vector
+   * in the state
+   * TODO: convert to ifstream
+   */
   bool LoadFeatureVectorAtCurrentWord(FILE *f, RnnState &state);
   
-  /// <summary>
-  /// Compute the accuracy of selecting the top candidate (based on score)
-  /// among n-best lists
-  /// </summary>
+  /**
+   * Compute the accuracy of selecting the top candidate (based on score)
+   * among n-best lists
+   */
   double AccuracyNBestList(std::vector<double> scores,
                            std::vector<int> &correctClasses) const;
   
-  /// <summary>
-  /// Cleans all activations and error vectors, in the input, hidden,
-  /// compression, feature and output layers, and resets word history
-  /// </summary>
+  /**
+   * Cleans all activations and error vectors, in the input, hidden,
+   * compression, feature and output layers, and resets word history
+   */
   void ResetAllRnnActivations(RnnState &state) const;
   
-  /// <summary>
-  /// Matrix-vector multiplication routine, accelerated using BLAS.
-  /// Computes x <- x + A' * y,
-  /// i.e., the "inverse" operation to y = A * x (adding the result to x)
-  /// where A is of size N x M, x is of length M and y is of length N.
-  /// The operation can done on a contiguous subset of indices
-  /// j in [idxYFrom, idxYTo[ of vector y.
-  /// </summary>
+  /**
+   * Matrix-vector multiplication routine, accelerated using BLAS.
+   * Computes x <- x + A' * y,
+   * i.e., the "inverse" operation to y = A * x (adding the result to x)
+   * where A is of size N x M, x is of length M and y is of length N.
+   * The operation can done on a contiguous subset of indices
+   * j in [idxYFrom, idxYTo[ of vector y.
+   */
   void GradientMatrixXvectorBlas(std::vector<double> &vectorX,
                                  std::vector<double> &vectorY,
                                  std::vector<double> &matrixA,
@@ -233,12 +260,12 @@ protected:
                                  int idxYFrom,
                                  int idxYTo) const;
   
-  /// <summary>
-  /// Matrix-matrix multiplication routine, accelerated using BLAS.
-  /// Computes C <- alpha * A * B + beta * C.
-  /// The operation can done on a contiguous subset of row indices
-  /// j in [idxRowCFrom, idxRowCTo[ in matrix A and C.
-  /// </summary>
+  /**
+   * Matrix-matrix multiplication routine, accelerated using BLAS.
+   * Computes C <- alpha * A * B + beta * C.
+   * The operation can done on a contiguous subset of row indices
+   * j in [idxRowCFrom, idxRowCTo[ in matrix A and C.
+   */
   void MultiplyMatrixXmatrixBlas(std::vector<double> &matrixA,
                                  std::vector<double> &matrixB,
                                  std::vector<double> &matrixC,
@@ -250,10 +277,10 @@ protected:
                                  int idxRowCFrom,
                                  int idxRowCTo) const;
   
-  /// <summary>
-  /// Matrix-matrix or vector-vector addition routine using BLAS.
-  /// Computes Y <- alpha * X + beta * Y.
-  /// </summary>
+  /**
+   * Matrix-matrix or vector-vector addition routine using BLAS.
+   * Computes Y <- alpha * X + beta * Y.
+   */
   void AddMatrixToMatrixBlas(std::vector<double> &matrixX,
                              std::vector<double> &matrixY,
                              double alpha,

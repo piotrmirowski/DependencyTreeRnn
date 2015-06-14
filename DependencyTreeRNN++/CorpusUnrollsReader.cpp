@@ -1,8 +1,8 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
-//                                               
-// Code submitted as supplementary material for manuscript:
+// Copyright (c) 2014-2015 Piotr Mirowski
+//
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 #include <stdio.h>
 #include <climits>

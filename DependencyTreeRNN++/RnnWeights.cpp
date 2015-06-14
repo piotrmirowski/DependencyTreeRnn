@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include <stdio.h>
 #include <vector>
@@ -72,12 +99,7 @@ m_sizeOutput(sizeVocabulary + sizeClasses) {
   RandomizeVector(Hidden2Output);
 
   // Initialize the direct n-gram connections
-#ifdef USE_HASHTABLES
-  DirectBiGram.clear();
-  DirectTriGram.clear();
-#else
   DirectNGram.assign(m_sizeDirectConnection, 0.0);
-#endif
 } // RnnWeights()
 
 
@@ -95,12 +117,7 @@ void RnnWeights::Clear() {
     Hidden2Output.clear();
     Compress2Output.clear();
   }
-#ifdef USE_HASHTABLES
-  DirectBiGram.clear();
-  DirectTriGram.clear();
-#else
   DirectNGram.clear();
-#endif
 }
 
 
@@ -142,11 +159,8 @@ void RnnWeights::Load(FILE *fi) {
   if (m_sizeDirectConnection > 0) {
     Log("Reading " + ConvString(m_sizeDirectConnection) +
         " n-gram connections...\n");
-#ifdef USE_HASHTABLES
-#else
     // Read the direct connections
     ReadBinaryVector(fi, m_sizeDirectConnection, DirectNGram);
-#endif
   }
 } // void Load()
 
@@ -190,13 +204,10 @@ void RnnWeights::Save(FILE *fo) {
     // Save the direct connections
     Log("Saving " + ConvString(m_sizeDirectConnection) +
         " n-gram connections...\n", logFilename);
-#ifdef USE_HASHTABLES
-#else
     for (long long aa = 0; aa < m_sizeDirectConnection; aa++) {
       float fl = (float)(DirectNGram[aa]);
       fwrite(&fl, 4, 1, fo);
     }
-#endif
   }
 } // void Save()
 

@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef DependencyTreeRNN_RnnWeights_h
 #define DependencyTreeRNN_RnnWeights_h
@@ -14,9 +41,6 @@
 #include <vector>
 #include <sstream>
 #include "Utils.h"
-
-
-//#define USE_HASHTABLES
 
 
 /**
@@ -28,74 +52,6 @@ const unsigned int c_Primes[] = {108641969, 116049371, 125925907, 133333309, 145
   782715551, 790122953, 812345159, 814814293, 893826581, 923456189, 940740127, 953085797, 985184539, 990122807};
 const unsigned int c_PrimesSize = sizeof(c_Primes)/sizeof(c_Primes[0]);
 
-
-#ifdef USE_HASHTABLES
-
-/**
- * Triple of integers that can be used as key in a hashtable
- */
-struct WordTripleKey {
-  int w1;
-  int w2;
-  int w3;
-
-  WordTripleKey(int v1, int v2, int v3)
-  : w1(v1), w2(v2), w3(v3) { }
-
-  bool isValid() { return (w1 != -1) && (w2 != -1) && (w3 != -1); }
-
-  bool operator==(const WordTripleKey &key) const {
-    return ((w1 == key.w1) && (w2 == key.w2) && (w3 == key.w3));
-  }
-};
-
-
-/**
- * Hashtable indexed by a triple of integers
- */
-template <>
-struct std::hash<WordTripleKey> {
-  unsigned long long operator()(const WordTripleKey& k) const {
-    unsigned long long hash = c_Primes[0] * c_Primes[1] * k.w1;
-    hash += c_Primes[(2*c_Primes[1]+1)%c_PrimesSize] * k.w2;
-    hash += c_Primes[(2*c_Primes[2]+2)%c_PrimesSize] * k.w3;
-    return hash;
-  }
-};
-
-
-/**
- * Pair of integers that can be used as key in a hashtable
- */
-struct WordPairKey {
-  int w1;
-  int w2;
-
-  WordPairKey(int v1, int v2)
-  : w1(v1), w2(v2) { }
-
-  bool isValid() { return (w1 != -1) && (w2 != -1); }
-
-  bool operator==(const WordPairKey &key) const {
-    return ((w1 == key.w1) && (w2 == key.w2));
-  }
-};
-
-
-/**
- * Hashtable indexed by a pair of integers
- */
-template <>
-struct std::hash<WordPairKey>
-{
-  unsigned long long operator()(const WordPairKey& k) const {
-    unsigned long long hash = c_Primes[0] * c_Primes[1] * k.w1;
-    hash += c_Primes[(2*c_Primes[1]+1)%c_PrimesSize] * k.w2;
-    return hash;
-  }
-};
-
-#endif // USE_HASHTABLES
 
 /**
  * Weights of an RNN
@@ -142,24 +98,14 @@ public:
   std::vector<double> Compress2Output;
   // Direct parameters between input and output layer
   // (similar to Maximum Entropy model parameters)
-#ifdef USE_HASHTABLES
-  std::unordered_map<WordTripleKey, float> DirectTriGram;
-  std::unordered_map<WordPairKey, float> DirectBiGram;
-  std::unordered_map<int, float> DirectUniGram;
-#else
   std::vector<double> DirectNGram;
-#endif
 
   /**
    * Return the number of direct connections between input words
    * and the output word (i.e., n-gram features)
    */
   int GetNumDirectConnection() const {
-#ifdef USE_HASHTABLES
-    return 1;
-#else
     return static_cast<int>(DirectNGram.size());
-#endif
   } // int GetNumDirectConnections()
 
   /**

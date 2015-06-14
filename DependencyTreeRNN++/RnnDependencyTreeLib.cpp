@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,13 +56,13 @@ extern "C" {
 #endif
 
 
-/// <summary>
-/// Before learning the RNN model, we need to learn the vocabulary
-/// from the corpus. Note that the word classes may have been initialized
-/// beforehand using ReadClasses. Computes the unigram distribution
-/// of words from a training file, assuming that the existing vocabulary
-/// is empty.
-/// </summary>
+/**
+ * Before learning the RNN model, we need to learn the vocabulary
+ * from the corpus. Note that the word classes may have been initialized
+ * beforehand using ReadClasses. Computes the unigram distribution
+ * of words from a training file, assuming that the existing vocabulary
+ * is empty.
+ */
 bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
 
   // We cannot use a class file... (classes need to be frequency-based)
@@ -74,13 +101,13 @@ bool RnnTreeLM::LearnVocabularyFromTrainFile(int numClasses) {
 }
 
 
-/// <summary>
-/// Before learning the RNN model, we need to learn the vocabulary
-/// from the corpus. Note that the word classes may have been initialized
-/// beforehand using ReadClasses. Computes the unigram distribution
-/// of words from a training file, assuming that the existing vocabulary
-/// is empty.
-/// </summary>
+/**
+ * Before learning the RNN model, we need to learn the vocabulary
+ * from the corpus. Note that the word classes may have been initialized
+ * beforehand using ReadClasses. Computes the unigram distribution
+ * of words from a training file, assuming that the existing vocabulary
+ * is empty.
+ */
 bool RnnTreeLM::AssignVocabularyFromCorpora(int numClasses) {
 
   // Create an empty vocabulary structure for words
@@ -124,17 +151,17 @@ bool RnnTreeLM::AssignVocabularyFromCorpora(int numClasses) {
 }
 
 
-/// <summary>
-/// Reset the vector of feature labels
-/// </summary>
+/**
+ * Reset the vector of feature labels
+ */
 void RnnTreeLM::ResetFeatureLabelVector(RnnState &state) const {
   state.FeatureLayer.assign(GetFeatureSize(), 0.0);
 }
 
 
-/// <summary>
-/// Update the vector of feature labels
-/// </summary>
+/**
+ * Update the vector of feature labels
+ */
 void RnnTreeLM::UpdateFeatureLabelVector(int label, RnnState &state) const {
   // Time-decay the previous labels using weight gamma
   int sizeFeatures = GetFeatureSize();
@@ -148,10 +175,10 @@ void RnnTreeLM::UpdateFeatureLabelVector(int label, RnnState &state) const {
 }
 
 
-/// <summary>
-/// Train a Recurrent Neural Network model on a test file
-/// using the JSON trees of dependency parse
-/// </summary>
+/**
+ * Train a Recurrent Neural Network model on a test file
+ * using the JSON trees of dependency parse
+ */
 bool RnnTreeLM::TrainRnnModel() {
   // Reset the log-likelihood to ginourmous value
   double lastValidLogProbability = -1E37;
@@ -404,9 +431,9 @@ bool RnnTreeLM::TrainRnnModel() {
 }
 
 
-/// <summary>
-/// Test a Recurrent Neural Network model on a test file
-/// </summary>
+/**
+ * Test a Recurrent Neural Network model on a test file
+ */
 bool RnnTreeLM::TestRnnModel(const string &testFile,
                              const string &featureFile,
                              vector<double> &sentenceScores,

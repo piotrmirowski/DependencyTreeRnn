@@ -1,14 +1,13 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 #ifndef DependencyTreeRNN___readjson_h
 #define DependencyTreeRNN___readjson_h
 
 #include <vector>
-#include "json.h"
 #include "CorpusUnrollsReader.h"
 
 using namespace std;
@@ -71,13 +70,6 @@ protected:
    */
   size_t const ParseBook(const string &json_book,
                          vector<vector<vector<JsonToken>>> &book) const;
-
-  /**
-   * Parse a token in the JSON parse tree to fill token data
-   */
-  void ProcessToken(const json_value *_token,
-                    int & tokenPos, string & tokenWord,
-                    double & tokenDiscount, string & tokenLabel) const;
 };
 
 #endif

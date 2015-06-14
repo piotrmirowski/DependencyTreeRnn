@@ -1,11 +1,38 @@
-// Copyright (c) 2014 Anonymized. All rights reserved.
+// Copyright (c) 2014-2015 Piotr Mirowski
 //
-// Code submitted as supplementary material for manuscript:
+// Piotr Mirowski, Andreas Vlachos
 // "Dependency Recurrent Neural Language Models for Sentence Completion"
-// Do not redistribute.
+// ACL 2015
 
 // Based on code by Geoffrey Zweig and Tomas Mikolov
-// for the Recurrent Neural Networks Language Model (RNNLM) toolbox
+// for the Feature-Augmented RNN Tool Kit
+// http://research.microsoft.com/en-us/projects/rnn/
+
+/*
+ This file is based on or incorporates material from the projects listed below (collectively, "Third Party Code").
+ Microsoft is not the original author of the Third Party Code. The original copyright notice and the license under which Microsoft received such Third Party Code,
+ are set forth below. Such licenses and notices are provided for informational purposes only. Microsoft, not the third party, licenses the Third Party Code to you
+ under the terms set forth in the EULA for the Microsoft Product. Microsoft reserves all rights not expressly granted under this agreement, whether by implication,
+ estoppel or otherwise.
+
+ RNNLM 0.3e by Tomas Mikolov
+
+ Provided for Informational Purposes Only
+
+ BSD License
+ All rights reserved.
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+ Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other
+ materials provided with the distribution.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,20 +56,19 @@ extern "C" {
 using namespace std;
 
 
-/// <summary>
-/// This is currently unused, and we might not use topic model features at all.
-/// The idea is to load a matrix of size W * T, where W is the number of words
-/// and T is the number of topics. Each word is embedding into a topic vector.
-/// The algorithm for word embedding can be Latent Dirichlet Allocation,
-/// Latent Semantic Indexing, DSSM, etc...
-/// It however assumes that the topic of the sentence changes with each word
-/// and is based on longer word history, which is more appropriate for
-/// long English sentences than for queries.
-/// The function that needs to be called at runtime or during training is
-/// UpdateFeatureVectorUsingTopicModel
-/// </summary>
-bool RnnLM::LoadTopicModelFeatureMatrix()
-{
+/**
+ * This is currently unused, and we might not use topic model features at all.
+ * The idea is to load a matrix of size W * T, where W is the number of words
+ * and T is the number of topics. Each word is embedding into a topic vector.
+ * The algorithm for word embedding can be Latent Dirichlet Allocation,
+ * Latent Semantic Indexing, DSSM, etc...
+ * It however assumes that the topic of the sentence changes with each word
+ * and is based on longer word history, which is more appropriate for
+ * long English sentences than for queries.
+ * The function that needs to be called at runtime or during training is
+ * UpdateFeatureVectorUsingTopicModel
+ */
+bool RnnLM::LoadTopicModelFeatureMatrix() {
   size_t numTopics = 0;
 
   std::ifstream inf(m_featureMatrixFile);
@@ -51,8 +77,7 @@ bool RnnLM::LoadTopicModelFeatureMatrix()
   std::vector<double> topicVector;
   const auto vocabSize = GetVocabularySize();
 
-  while (std::getline(inf, line))
-  {
+  while (std::getline(inf, line)) {
     // The file has the following structure:
     // there is one line per word, of format:
     // word topic_1 topic_2 ... topic_k
@@ -71,8 +96,7 @@ bool RnnLM::LoadTopicModelFeatureMatrix()
       topicVector.push_back(x);
 
     // Update the number of topics and reallocate feature matrix
-    if (numTopics == 0)
-    {
+    if (numTopics == 0) {
       numTopics = topicVector.size();
       m_featureMatrix.assign(numTopics, 10000.0);
       m_featureMatrix.assign(vocabSize * numTopics, 0.0);
@@ -90,14 +114,14 @@ bool RnnLM::LoadTopicModelFeatureMatrix()
 }
 
 
-/// <summary>
-/// Function used to initialize the RNN model to the specified dimensions
-/// of the layers and weight vectors. This is done at construction
-/// of the RNN model object and also during training time (not at runtime).
-/// It is not thread safe yet because there is this file (m_featureMatrixFile)
-/// that contains the topic model for the words (LDA-style, see the paper),
-/// that is loaded by the function. It also modifies the vocabulary hash tables.
-/// </summary>
+/**
+ * Function used to initialize the RNN model to the specified dimensions
+ * of the layers and weight vectors. This is done at construction
+ * of the RNN model object and also during training time (not at runtime).
+ * It is not thread safe yet because there is this file (m_featureMatrixFile)
+ * that contains the topic model for the words (LDA-style, see the paper),
+ * that is loaded by the function. It also modifies the vocabulary hash tables.
+ */
 bool RnnLM::InitializeRnnModel(int sizeVocabulary,
                                int sizeHidden,
                                int sizeFeature,
@@ -135,17 +159,14 @@ bool RnnLM::InitializeRnnModel(int sizeVocabulary,
 }
 
 
-/// <summary>
-/// Go to the next char delim when reading a file
-/// </summary>
-bool RnnLM::GoToDelimiterInFile(int delim, FILE *fi) const
-{
+/**
+ * Go to the next char delim when reading a file
+ */
+bool RnnLM::GoToDelimiterInFile(int delim, FILE *fi) const {
   int ch = 0;
-  while (ch != delim)
-  {
+  while (ch != delim) {
     ch = fgetc(fi);
-    if (feof(fi))
-    {
+    if (feof(fi)) {
       printf("Unexpected end of file\n");
       return false;
     }
@@ -154,9 +175,9 @@ bool RnnLM::GoToDelimiterInFile(int delim, FILE *fi) const
 }
 
 
-/// <summary>
-/// Constructor
-/// </summary>
+/**
+ * Constructor
+ */
 RnnLM::RnnLM(const string &filename,
              bool doLoadModel)
 // Default penalty for unknown words
@@ -360,8 +381,7 @@ void RnnLM::LoadRnnModelFromFile() {
   m_weights.Load(fi);
 
   // Read the feature matrix
-  if (m_featureMatrixUsed)
-  {
+  if (m_featureMatrixUsed) {
     ReadBinaryMatrix(fi, sizeFeature, sizeVocabulary, m_featureMatrix);
     m_featureMatrix.resize(GetVocabularySize() * sizeFeature);
   }
@@ -373,13 +393,12 @@ void RnnLM::LoadRnnModelFromFile() {
 }
 
 
-/// <summary>
-/// Erase the hidden layer state and the word history.
-/// Needed when processing sentences/queries in independent mode.
-/// Updates the RnnState object.
-/// </summary>
-void RnnLM::ResetHiddenRnnStateAndWordHistory(RnnState &state) const
-{
+/**
+ * Erase the hidden layer state and the word history.
+ * Needed when processing sentences/queries in independent mode.
+ * Updates the RnnState object.
+ */
+void RnnLM::ResetHiddenRnnStateAndWordHistory(RnnState &state) const {
   // Set hidden unit activations to 1.0
   state.HiddenLayer.assign(GetHiddenSize(), 1.0);
   // Copy the hidden layer to the input (i.e., recurrent connection)
@@ -388,25 +407,20 @@ void RnnLM::ResetHiddenRnnStateAndWordHistory(RnnState &state) const
   ResetWordHistory(state);
 }
 void RnnLM::ResetHiddenRnnStateAndWordHistory(RnnState &state,
-                                              RnnBptt &bpttState) const
-{
+                                              RnnBptt &bpttState) const {
   // Set hidden unit activations to 1
   // Copy the hidden layer to the input (i.e., recurrent connection)
   // Reset the word history
   ResetHiddenRnnStateAndWordHistory(state);
 
   // Reset the BPTT history and hidden layer activation and gradient
-  if (m_numBpttSteps > 0)
-  {
-    for (int a = 1; a < m_numBpttSteps + m_bpttBlockSize; a++)
-    {
+  if (m_numBpttSteps > 0) {
+    for (int a = 1; a < m_numBpttSteps + m_bpttBlockSize; a++) {
       bpttState.History[a] = 0;
     }
     int sizeHidden = GetHiddenSize();
-    for (int a = m_numBpttSteps + m_bpttBlockSize - 1; a > 1; a--)
-    {
-      for (int b = 0; b < sizeHidden; b++)
-      {
+    for (int a = m_numBpttSteps + m_bpttBlockSize - 1; a > 1; a--) {
+      for (int b = 0; b < sizeHidden; b++) {
         bpttState.HiddenLayer[a * sizeHidden + b] = 0;
         bpttState.HiddenGradient[a * sizeHidden + b] = 0;
       }
@@ -415,38 +429,33 @@ void RnnLM::ResetHiddenRnnStateAndWordHistory(RnnState &state,
 }
 
 
-/// <summary>
-/// Erases only the word history.
-/// Needed when processing sentences/queries in independent mode.
-/// Updates the RnnState object.
-/// </summary>
-void RnnLM::ResetWordHistory(RnnState &state) const
-{
+/**
+ * Erases only the word history.
+ * Needed when processing sentences/queries in independent mode.
+ * Updates the RnnState object.
+ */
+void RnnLM::ResetWordHistory(RnnState &state) const {
   state.WordHistory.assign(c_maxNGramOrder, 0);
 }
 void RnnLM::ResetWordHistory(RnnState &state,
-                             RnnBptt &bpttState) const
-{
+                             RnnBptt &bpttState) const {
   // Reset the word history
   ResetWordHistory(state);
   // Reset the word history in the BPTT
-  if (m_numBpttSteps > 0)
-  {
-    for (int a = 0; a < m_numBpttSteps+m_bpttBlockSize; a++)
-    {
+  if (m_numBpttSteps > 0) {
+    for (int a = 0; a < m_numBpttSteps+m_bpttBlockSize; a++) {
       bpttState.History[a] = 0;
     }
   }
 }
 
 
-/// <summary>
-/// Simply copy the hidden activations and gradients, as well as
-/// the word history, from one state object to another state object.
-/// </summary>
+/**
+ * Simply copy the hidden activations and gradients, as well as
+ * the word history, from one state object to another state object.
+ */
 void RnnLM::SaveHiddenRnnState(const RnnState &stateFrom,
-                               RnnState &stateTo) const
-{
+                               RnnState &stateTo) const {
   stateTo.HiddenLayer.resize(stateFrom.HiddenLayer.size());
   stateTo.HiddenGradient.resize(stateFrom.HiddenGradient.size());
   stateTo.CompressLayer.resize(stateFrom.CompressLayer.size());
@@ -460,21 +469,20 @@ void RnnLM::SaveHiddenRnnState(const RnnState &stateFrom,
 }
 
 
-/// <summary>
-/// Forward-propagate the RNN through one full step, starting from
-/// the lastWord w(t) and the previous hidden state activation s(t-1),
-/// as well as optional feature vector f(t)
-/// and direct n-gram connections to the word history,
-/// computing the new hidden state activation s(t)
-/// s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// Updates the RnnState object (but not the weights).
-/// </summary>
+/**
+ * Forward-propagate the RNN through one full step, starting from
+ * the lastWord w(t) and the previous hidden state activation s(t-1),
+ * as well as optional feature vector f(t)
+ * and direct n-gram connections to the word history,
+ * computing the new hidden state activation s(t)
+ * s(t) = sigmoid(W * s(t-1) + U * w(t) + F * f(t))
+ * x = V * s(t) + G * f(t) + n-gram_connections
+ * y(t) = softmax_class(x) * softmax_word_given_class(x)
+ * Updates the RnnState object (but not the weights).
+ */
 void RnnLM::ForwardPropagateOneStep(int lastWord,
                                     int word,
-                                    RnnState &state)
-{
+                                    RnnState &state) {
   // Nothing to do when the word is OOV
   if (word == -1) {
     return;
@@ -619,25 +627,6 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
   int sizeDirectConnection = GetNumDirectConnection();
   int orderDirectConnection = GetOrderDirectConnection();
   if (sizeDirectConnection > 0) {
-#ifdef USE_HASHTABLES
-    for (int c = sizeVocabulary; c < sizeOutput; c++) {
-      WordTripleKey key3(c, m_state.WordHistory[0], m_state.WordHistory[1]);
-      if (key3.isValid()) {
-        auto i = m_weights.DirectTriGram.find(key3);
-        if (i == m_weights.DirectTriGram.end()) {
-          m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
-        }
-        m_state.OutputLayer[c] += m_weights.DirectTriGram[key3];
-      }
-      WordPairKey key2(c, m_state.WordHistory[0]);
-      if (key2.isValid()) {
-        if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
-          m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
-        }
-        m_state.OutputLayer[c] += m_weights.DirectBiGram[key2];
-      }
-    }
-#else
     // this will hold pointers to m_weightDataMain.weightsDirect
     // that contains hash parameters
     unsigned long long hash[c_maxNGramOrder];
@@ -672,7 +661,6 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
         }
       }
     }
-#endif
   }
 
   // Apply the softmax transfer function to the hidden values s(t)
@@ -699,18 +687,17 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
 }
 
 
-/// <summary>
-/// Given a target word class, compute the conditional distribution
-/// of all words within that class. The hidden state activation s(t)
-/// is assumed to be already computed. Essentially, computes:
-/// x = V * s(t) + G * f(t) + n-gram_connections
-/// y(t) = softmax_class(x) * softmax_word_given_class(x)
-/// but for a specific targetClass.
-/// Updates the RnnState object (but not the weights).
-/// </summary>
+/**
+ * Given a target word class, compute the conditional distribution
+ * of all words within that class. The hidden state activation s(t)
+ * is assumed to be already computed. Essentially, computes:
+ * x = V * s(t) + G * f(t) + n-gram_connections
+ * y(t) = softmax_class(x) * softmax_word_given_class(x)
+ * but for a specific targetClass.
+ * Updates the RnnState object (but not the weights).
+ */
 void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
-                                           RnnState &state)
-{
+                                           RnnState &state) {
   // How many words in that target class?
   int targetClassCount = m_vocab.SizeTargetClass(targetClass);
   // At which index in output layer y(t) position do the words
@@ -777,25 +764,6 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
   int sizeDirectConnection = GetNumDirectConnection();
   int orderDirectConnection = GetOrderDirectConnection();
   if (sizeDirectConnection > 0) {
-#ifdef USE_HASHTABLES
-    for (int c = 0; c < targetClassCount; c++) {
-      int wordInClass = m_classWords[targetClass][c];
-      WordTripleKey key3(wordInClass, m_state.WordHistory[0], m_state.WordHistory[1]);
-      if (key3.isValid()) {
-        if (m_weights.DirectTriGram.find(key3) == m_weights.DirectTriGram.end()) {
-          m_weights.DirectTriGram.insert(pair<WordTripleKey, double>(key3, 0));
-        }
-        m_state.OutputLayer[wordInClass] += m_weights.DirectTriGram[key3];
-      }
-      WordPairKey key2(wordInClass, m_state.WordHistory[0]);
-      if (key2.isValid()) {
-        if (m_weights.DirectBiGram.find(key2) == m_weights.DirectBiGram.end()) {
-          m_weights.DirectBiGram.insert(pair<WordPairKey, double>(key2, 0));
-        }
-        m_state.OutputLayer[c] += m_weights.DirectBiGram[key2];
-      }
-    }
-#else
     unsigned long long hash[c_maxNGramOrder];
     for (int a = 0; a < orderDirectConnection; a++) {
       hash[a] = 0;
@@ -823,7 +791,6 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
         }
       }
     }
-#endif
   }
 
   // Apply the softmax transfer function to the hidden values s(t)
@@ -846,21 +813,20 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
 }
 
 
-/// <summary>
-/// Matrix-vector multiplication routine, somewhat accelerated using loop
-/// unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
-/// where A is of size N x M, x is of length M and y is of length N.
-/// The operation can done on a contiguous subset of indices
-/// i in [idxYFrom, idxYTo[ of vector y
-/// and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
-/// </summary>
+/**
+ * Matrix-vector multiplication routine, somewhat accelerated using loop
+ * unrolling over 8 registers. Computes y <- y + A * x, (i.e. adds A * x to y)
+ * where A is of size N x M, x is of length M and y is of length N.
+ * The operation can done on a contiguous subset of indices
+ * i in [idxYFrom, idxYTo[ of vector y
+ * and on a contiguous subset of indices j in [idxXFrom, idxXTo[ of vector x.
+ */
 void RnnLM::MultiplyMatrixXvectorBlas(vector<double> &vectorY,
                                       vector<double> &vectorX,
                                       vector<double> &matrixA,
                                       int widthMatrix,
                                       int idxYFrom,
-                                      int idxYTo) const
-{
+                                      int idxYTo) const {
   double *vecX = &vectorX[0];
   int idxAFrom = idxYFrom * widthMatrix;
   double *matA = &matrixA[idxAFrom];
@@ -873,69 +839,61 @@ void RnnLM::MultiplyMatrixXvectorBlas(vector<double> &vectorY,
 }
 
 
-/// <summary>
-/// Copies the hidden layer activation s(t) to the recurrent connections.
-/// That copy will become s(t-1) at the next call of ForwardPropagateOneStep
-/// </summary>
-void RnnLM::ForwardPropagateRecurrentConnectionOnly(RnnState &state) const
-{
+/**
+ * Copies the hidden layer activation s(t) to the recurrent connections.
+ * That copy will become s(t-1) at the next call of ForwardPropagateOneStep
+ */
+void RnnLM::ForwardPropagateRecurrentConnectionOnly(RnnState &state) const {
   state.RecurrentLayer = state.HiddenLayer;
 }
 
 
-/// <summary>
-/// Shift the word history by one and update last word.
-/// </summary>
+/**
+ * Shift the word history by one and update last word.
+ */
 void RnnLM::ForwardPropagateWordHistory(RnnState &state,
                                         int &lastWord,
-                                        const int word) const
-{
+                                        const int word) const {
   // Delete the previous activation of the input layer for lastWord
-  if (lastWord != -1)
-  {
+  if (lastWord != -1) {
     state.InputLayer[lastWord] = 0;
   }
   // Update lastWord
   lastWord = word;
   // Shift the word history
-  for (int a = c_maxNGramOrder - 1; a > 0; a--)
-  {
+  for (int a = c_maxNGramOrder - 1; a > 0; a--) {
     state.WordHistory[a] = state.WordHistory[a-1];
   }
   state.WordHistory[0] = lastWord;
 }
 
 
-/// <summary>
-/// One way of having additional features to the RNN is to fit a topic
-/// model to the past history of words. This can be achieved in a simple
-/// way if such a topic matrix (words vs. topics) has been computed.
-/// The feature vector f(t) is then simply an autoregressive
-/// (exponentially decaying) function of the topic model vectors
-/// for each word in the history.
-/// This works well when processing sentence in English but might not
-/// be appropriate for short queries, since the topic feature
-/// will be continuously reset.
-/// </summary>
+/**
+ * One way of having additional features to the RNN is to fit a topic
+ * model to the past history of words. This can be achieved in a simple
+ * way if such a topic matrix (words vs. topics) has been computed.
+ * The feature vector f(t) is then simply an autoregressive
+ * (exponentially decaying) function of the topic model vectors
+ * for each word in the history.
+ * This works well when processing sentence in English but might not
+ * be appropriate for short queries, since the topic feature
+ * will be continuously reset.
+ */
 void RnnLM::UpdateFeatureVectorUsingTopicModel(int word,
-                                               RnnState &state) const
-{
+                                               RnnState &state) const {
   // Safety check
-  if (word < 0)
-  {
+  if (word < 0) {
     return;
   }
 
   // Check if the features for this word were defined
-  if (m_featureMatrix[word] >= 1000)
-  {
+  if (m_featureMatrix[word] >= 1000) {
     return;
   }
 
   int sizeFeature = GetFeatureSize();
   int sizeVocabulary = GetVocabularySize();
-  if (m_areSentencesIndependent && (word == 0))
-  {
+  if (m_areSentencesIndependent && (word == 0)) {
     // Reset the feature vector at the beginning of each sentence
     state.FeatureLayer.assign(sizeFeature, 0);
   }
@@ -944,8 +902,7 @@ void RnnLM::UpdateFeatureVectorUsingTopicModel(int word,
   // f(t) = gamma * f(t-1) +  (1 - gamma) * Z_word
   // where Z_word is the topic model word representation for the word.
   double oneMinusGamma = (1 - m_featureGammaCoeff);
-  for (int a = 0; a < sizeFeature; a++)
-  {
+  for (int a = 0; a < sizeFeature; a++) {
     state.FeatureLayer[a] =
     state.FeatureLayer[a] * m_featureGammaCoeff
     + m_featureMatrix[a * sizeVocabulary + word] * oneMinusGamma;
