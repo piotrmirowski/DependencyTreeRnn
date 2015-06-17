@@ -192,6 +192,7 @@ m_rnnModelVersion(20),
 // Vanilla RNN without topic features
 m_featureGammaCoeff(0.9),
 m_featureMatrixUsed(false),
+m_useFeatures2Output(true),
 // Default learning parameters
 m_learningRate(0.1),
 m_initialLearningRate(0.1),
@@ -603,7 +604,7 @@ void RnnLM::ForwardPropagateOneStep(int lastWord,
                               sizeOutput);
   }
 
-  if (sizeFeature > 0) {
+  if ((sizeFeature > 0) && m_useFeatures2Output) {
     // Forward-propagate f(t) -> y(t)
     // from the feature layer f(t) at time t
     // to the output layer y(t) at time t
@@ -747,7 +748,7 @@ void RnnLM::ComputeRnnOutputsForGivenClass(int targetClass,
   }
 
   int sizeFeature = GetFeatureSize();
-  if (sizeFeature > 0) {
+  if ((sizeFeature > 0) && m_useFeatures2Output) {
     // Forward-propagate f(t) -> y(t)
     // from the feature layer f(t) at time t
     // to the output layer y(t) at time t

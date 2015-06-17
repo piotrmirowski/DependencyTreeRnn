@@ -53,6 +53,8 @@ public:
   : RnnLMTraining(filename, doLoadModel, debugMode),
   // Parameters set by default (can be overriden when loading the model)
   m_typeOfDepLabels(0), m_labels(1) {
+    // If we use dependency labels, do not connect them to the outputs
+    m_useFeatures2Output = false;
     std::cout << "RnnTreeLM\n";
   }
   

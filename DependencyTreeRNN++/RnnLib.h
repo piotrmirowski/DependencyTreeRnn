@@ -335,6 +335,7 @@ protected:
   std::string m_featureMatrixFile;
   double m_featureGammaCoeff;
   int m_featureMatrixUsed;
+  bool m_useFeatures2Output;
 
   /**
    * This is used for the second way how to add features

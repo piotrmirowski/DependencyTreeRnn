@@ -511,7 +511,7 @@ void RnnLMTraining::BackPropagateErrorsThenOneStepGradientDescent(int contextWor
                               sizeOutput);
   }
   
-  if (sizeFeature > 0) {
+  if ((sizeFeature > 0) && m_useFeatures2Output) {
     // Back-propagate gradients coming from loss on words in target class
     // w.r.t. the weights V between the hidden layer and the output word layer
     // G[[classIdx, classIdx+numWordsClass] x [1, sizeFeature]]
