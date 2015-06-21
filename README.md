@@ -1,7 +1,7 @@
 # DependencyTreeRnn
 Dependency tree-based RNN
 
-Copyright (c) 2014-2015 Piotr Mirowski
+Copyright (c) 2014-2015 Piotr Mirowski, Andreas Vlachos
 
 Please refer to the following paper:
 Piotr Mirowski, Andreas Vlachos
