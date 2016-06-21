@@ -9,6 +9,7 @@ Piotr Mirowski, Andreas Vlachos
 ACL 2015
 
 # Installation
+0. Download the preprocessed training and validation/testing data from here: https://drive.google.com/file/d/0BwPdBcatuO0vS3JlUVBtZHpSb3M/view?usp=sharing
 1. Modify the path to the BLAS header (cblas.h) file, i.e., $BLASINCLUDE
    and the BLAS path, i.e., $BLASFLAGS, in file Makefile.
    Alternatively, make your own version of that Makefile.
